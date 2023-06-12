@@ -1,0 +1,28 @@
+from heap import Heap
+from Compiler.program import Program
+# from Compiler.compilerLib import Compiler
+from util_mpc import N_PARTY
+
+heap = Heap(100)
+heap.push((1, 0))
+heap.push((3, 1))
+heap.push((2, 2))
+heap.push((4, 3))
+top = heap.pop()
+print_ln("%s", top.reveal())
+top = heap.pop()
+print_ln("%s", top.reveal())
+heap.push((5, 4))
+heap.push((0, 5))
+heap.push((6, 6))
+top = heap.pop()
+print_ln("%s", top.reveal())
+top = heap.pop()
+print_ln("%s", top.reveal())
+top = heap.pop()
+print_ln("%s", top.reveal())
+top = heap.pop()
+print_ln("%s", top.reveal())
+top = heap.pop()
+print_ln("%s", top.reveal())
+# top = heap.pop()

@@ -1,0 +1,41 @@
+from link_graph import Graph
+from Compiler.program import Program
+# from Compiler.compilerLib import Compiler
+from util_mpc import N_PARTY
+
+# compiler = Compiler()
+# compiler.parser.add_option("--src", dest="S")
+# compiler.parse_args()
+
+prog = Program.prog
+# prog.use_edabit(True)
+print_ln("test_dijk over %d parties" % N_PARTY)
+
+city = "CAL"
+dir_data = prog.programs_dir + "/Public-Input/graph/"
+fn_g = dir_data + "%s/%s.gr" % (city, city)
+
+graph = Graph(fn_g)
+E = graph.E
+graph.load_weights(N_PARTY)
+
+weights = graph.weights
+# @for_range(0, E, 100)
+# def _(eid):
+# 	weights[eid].reveal()
+# print_ln("weights %s", weights[:10].reveal())
+
+fn_param = dir_data + "params.in"
+with open(fn_param) as f:
+	line = f.readline()
+	S, num = [int(x) for x in line.strip().split(" ")]
+
+from dijk1 import SSSP1
+from dijk3 import SSSP3
+start_timer(1)
+ans, ans_dist, size_ans = SSSP3(graph, S, num)
+stop_timer(1)
+ans_dist = ans_dist.reveal()
+@for_range(size_ans.min(10))
+def _(i):
+	print_ln("%s: %s", ans[i], ans_dist[i])
