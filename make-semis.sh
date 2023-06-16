@@ -44,5 +44,5 @@ do
 	exec=Scripts/$ptc.sh
 	# exec="Scripts/compile-run.py -E $ptc -$opt $bits"
 
-	# $exec $fin $prog #> $ptc.out
+	$exec $fin $prog #> $ptc.out
 done

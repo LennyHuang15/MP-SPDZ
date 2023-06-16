@@ -1,6 +1,6 @@
 from Compiler.types import *
 from Compiler.library import print_ln, for_range, do_while, while_do, break_loop, if_
-from util_mpc import N_PARTY
+from util_mpc import *
 from link_graph import Graph
 from heap import Heap
 
@@ -14,8 +14,8 @@ def SSSP3(graph, S, num):
 
 	exploreds = regint.Array(N)
 	exploreds.assign_all(0)
-	q = Heap(N)
-	q.push((sint(0), sint(S)))
+	q = Heap(N, 2)
+	q.push(sint_tuple(0, S))
 	@while_do(lambda: True)
 	def _():
 		nid, odist = regint(0), sint(0)
@@ -35,9 +35,9 @@ def SSSP3(graph, S, num):
 		# update min dist table
 		@for_range(link_index[nid], link_index[nid+1])
 		def _(eid):
-			nid_ = link_edges[eid][0]
+			nid_, w, owid = link_edges[eid]
 			@if_(exploreds[nid_] == 0)
 			def _():
-				odist_ = odist + weights[eid]
+				odist_ = odist + weights[owid]
 				q.push((odist_, sint(nid_)))
 	return ans, ans_dist, size_ans

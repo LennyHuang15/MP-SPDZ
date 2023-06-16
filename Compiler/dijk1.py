@@ -1,6 +1,6 @@
 from Compiler.types import *
 from Compiler.library import print_ln, for_range, while_do, break_loop, if_, if_e, else_
-from util_mpc import N_PARTY
+from util_mpc import *
 from link_graph import Graph
 # from util import argmin
 
@@ -32,10 +32,10 @@ def SSSP1(graph, S, num):
 		# add items whose src==nid into query table
 		@for_range(link_index[nid], link_index[nid+1])
 		def _(eid):
-			dst = link_edges[eid][0]
+			dst, w, owid = link_edges[eid]
 			@if_(exploreds[dst] == 0)
 			def _():
-				odist_ = odist + weights[eid]
+				odist_ = odist + weights[owid]
 				idx_query = invidx[dst]
 				@if_e(idx_query == -1)
 				def _():
@@ -52,8 +52,10 @@ def SSSP1(graph, S, num):
 		def _(i):
 			# print_ln("%s, %s", table_dst[i], table_query[i].reveal())
 			comp = (table_query[i] < omin_val)
-			omin_val.update(comp.if_else(table_query[i], omin_val))
-			omin_idx.update(comp.if_else(i, omin_idx))
+			maybe_set(omin_val, comp, table_query[i])
+			maybe_set(omin_idx, comp, i)
+			# omin_val.update(comp.if_else(table_query[i], omin_val))
+			# omin_idx.update(comp.if_else(i, omin_idx))
 		# omin_idx = argmin(table_query[:size_q])
 		min_idx = omin_idx.reveal()
 		# print_ln("Min item[%s]: %s", min_idx, omin_val.reveal())

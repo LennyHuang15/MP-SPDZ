@@ -1,41 +1,60 @@
 from link_graph import Graph
 from Compiler.program import Program
-# from Compiler.compilerLib import Compiler
-from util_mpc import N_PARTY
-
-# compiler = Compiler()
-# compiler.parser.add_option("--src", dest="S")
-# compiler.parse_args()
+from Compiler.library import public_input
+from util_mpc import *
 
 prog = Program.prog
 # prog.use_edabit(True)
 print_ln("test_dijk over %d parties" % N_PARTY)
 
 city = "CAL"
-dir_data = prog.programs_dir + "/Public-Input/graph/"
-fn_g = dir_data + "%s/%s.gr" % (city, city)
+dir_pub = prog.programs_dir + "/Public-Input/"
+dir_city = dir_pub + "graph/%s/" % (city)
+fn_cin = dir_city + "compile.in"
 
-graph = Graph(fn_g)
-E = graph.E
+LOAD_RUNTIME = 1
+graph = Graph()
+if LOAD_RUNTIME:
+	N, E, dim, E_new = [None for _ in range(4)]
+	with open(fn_cin) as fp:
+		N, E = read_ints(fp)[:2]
+		N_, dim = read_ints(fp)[:2]
+		assert N_ == N
+		N_, E_new = read_ints(fp)[:2]
+		assert N_ == N
+	print(N, E, dim, E_new)
+	graph.load(None, N, E, dim, E_new)
+else:
+	fn_g = dir_city + "%s.gr" % (city)
+	graph.load(fn_g)
+N, E = graph.N, graph.E
+
 graph.load_weights(N_PARTY)
-
 weights = graph.weights
 # @for_range(0, E, 100)
 # def _(eid):
 # 	weights[eid].reveal()
 # print_ln("weights %s", weights[:10].reveal())
 
-fn_param = dir_data + "params.in"
-with open(fn_param) as f:
-	line = f.readline()
-	S, num = [int(x) for x in line.strip().split(" ")]
+fn_param = dir_city + "params.in"
+fn_param = fn_cin
+with open(fn_param) as fp:
+	for _ in range(3):
+		fp.readline()
+	S, num = read_ints(fp)
 
-from dijk1 import SSSP1
-from dijk3 import SSSP3
+# from dijk1 import SSSP1 as SP
+# from dijk3 import SSSP3 as SP
+from spsp0 import SPSP0 as SP
 start_timer(1)
-ans, ans_dist, size_ans = SSSP3(graph, S, num)
+ans, ans_dist, size_ans = SP(graph, S, num)
 stop_timer(1)
+n_report = 10
 ans_dist = ans_dist.reveal()
 @for_range(size_ans.min(10))
 def _(i):
-	print_ln("%s: %s", ans[i], ans_dist[i])
+	print_ln("[%s]: %s, %s", i, ans[i], ans_dist[i])
+@if_(n_report < size_ans)
+def _():
+	last = size_ans - 1
+	print_ln("[%s]: %s, %s", last, ans[last], ans_dist[last])

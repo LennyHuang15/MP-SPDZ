@@ -3,10 +3,12 @@ from Compiler.library import print_ln, if_, while_do, break_loop
 from Compiler.program import Program
 from util import bit_and
 
-WIDTH = 2
-PLAIN = 0
+# WIDTH = 2
+KEY = 0
+PLAIN = 1
 class Heap(object):
-	def __init__(self, capacity):
+	def __init__(self, capacity, WIDTH=2):
+		self.WIDTH = WIDTH
 		self.capacity, self.size = regint(capacity), regint(0)
 		self.arr = sint.Tensor([capacity, WIDTH])
 	def __len__(self):
@@ -15,7 +17,7 @@ class Heap(object):
 	def top(self):
 		return self.arr[0]
 	def push(self, entry):
-		arr, size = self.arr, self.size
+		WIDTH, arr, size = self.WIDTH, self.arr, self.size
 		crash(size >= self.capacity)
 		pos = regint(size)
 		arr[pos] = entry
@@ -24,7 +26,7 @@ class Heap(object):
 		@while_do(lambda: pos > 0)
 		def _():
 			par = (pos - 1) / 2
-			higher = arr[pos][0] < arr[par][0]
+			higher = arr[pos][KEY] < arr[par][KEY]
 			if(PLAIN):
 				higher = higher.reveal()
 			for i in range(WIDTH):
@@ -36,7 +38,7 @@ class Heap(object):
 			pos.update(par)
 
 	def pop(self):
-		arr, size = self.arr, self.size
+		WIDTH, arr, size = self.WIDTH, self.arr, self.size
 		crash(size <= 0)
 		size.iadd(-1)
 		top = sint.Array(WIDTH)
@@ -48,9 +50,9 @@ class Heap(object):
 		@while_do(lambda: lch < size)
 		def _():
 			having_rch = (lch < size - 1)
-			higher_rch = (arr[lch+1][0] < arr[lch][0]).reveal()
+			higher_rch = (arr[lch+1][KEY] < arr[lch][KEY]).reveal()
 			ch = bit_and(having_rch, higher_rch).if_else(lch+1, lch)
-			higher = arr[ch][0] < arr[par][0]
+			higher = arr[ch][KEY] < arr[par][KEY]
 			if(PLAIN):
 				higher = higher.reveal()
 			for i in range(WIDTH):
