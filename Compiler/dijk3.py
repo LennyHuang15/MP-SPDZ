@@ -4,7 +4,7 @@ from util_mpc import *
 from link_graph import Graph
 from heap import Heap
 
-def SSSP3(graph, S, num):
+def SSSP(graph, S, num):
 	print_ln("SSSP3[%d] from %d"% (num, S))
 	N, E = graph.N, graph.E
 	link_index, link_edges = graph.link_index, graph.link_edges

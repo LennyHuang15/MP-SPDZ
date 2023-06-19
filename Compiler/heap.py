@@ -7,10 +7,10 @@ from util import bit_and
 KEY = 0
 PLAIN = 1
 class Heap(object):
-	def __init__(self, capacity, WIDTH=2):
+	def __init__(self, capacity, WIDTH=2, value_type=sint):
 		self.WIDTH = WIDTH
 		self.capacity, self.size = regint(capacity), regint(0)
-		self.arr = sint.Tensor([capacity, WIDTH])
+		self.arr = value_type.Tensor([capacity, WIDTH])
 	def __len__(self):
 		return self.size
 
@@ -41,7 +41,7 @@ class Heap(object):
 		WIDTH, arr, size = self.WIDTH, self.arr, self.size
 		crash(size <= 0)
 		size.iadd(-1)
-		top = sint.Array(WIDTH)
+		top = arr.value_type.Array(WIDTH)
 		top.assign(arr[0])
 		arr[0] = arr[size]
 		# fix down

@@ -16,6 +16,16 @@ def read_ints(fp):
 def print_regvec(vec, name, num):
 	print_ln("%s[%d]: "% (name, len(vec)) + "%s " * num, *tuple(list(vec[:num])))
 
+def lin_search(arr, st, en, offset, key):
+	pos = regint(-1)
+	@for_range(st, en)
+	def _(i):
+		@if_(arr[i][offset] == key)
+		def _():
+			pos.update(i)
+			break_loop()
+	return pos
+
 def obacktrace_path(S, T, exploreds, dists, N):
 	ans, ans_dist, length = regint.Array(N), sint.Array(N), regint(0)
 	nid = regint(T)
@@ -32,12 +42,8 @@ def obacktrace_path(S, T, exploreds, dists, N):
 def vec_merge(vec, l, vec_rev, l_rev):
 	@for_range(l / 2) # reverse the first half
 	def _(i):
-		vec[i], vec[l - i] = vec[l - i], vec[i]
+		vec[i], vec[l - i - 1] = vec[l - i - 1], vec[i]
 	@for_range(l_rev)
 	def _(i):
 		vec[l + i] = vec_rev[i]
 	return vec
-	# vec_tot = vec.value_type.Array(size + size_rev)
-	# vec_tot.assign_vector(vec.get_reverse_vector())
-	# vec_tot.assign_vector(vec_rev, size)
-	# return vec_tot

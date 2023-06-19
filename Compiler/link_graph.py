@@ -3,7 +3,7 @@ from Compiler.library import for_range, print_ln, public_input
 from Compiler.program import Program
 import numpy as np
 from util import max
-from util_mpc import print_regvec
+from util_mpc import N_PARTY, print_regvec
 
 '''Read graph in compile time (slow)'''
 def read_graph(fn):
@@ -59,7 +59,7 @@ def tensor2link_graph(NN, edges, rev=False):
 	degs = regint.Array(NN)
 	degs.assign_all(0)
 	NE, dim = edges.shape
-	print_ln("tensor2link_graph: %s, %s, %s", NN, NE, dim)
+	# print_ln("tensor2link_graph: %s, %s, %s", NN, NE, dim)
 	idx = 1 if rev else 0
 	@for_range(NE)
 	def _(eid):
@@ -92,17 +92,35 @@ def load_link_graph(NN, NE, dim, offset=False):
 	link_index, link_edges = tensor2link_graph(NN, edges)
 	link_index_rev, link_edges_rev = tensor2link_graph(NN, edges, rev=True)
 	return link_index, link_edges, link_index_rev, link_edges_rev
+
+def load_weights(E):
+	parties_weights = sint.Matrix(N_PARTY, E)
+	for p in range(N_PARTY):
+		parties_weights[p].input_from(p)
+		# print_ln("P%s: %s", p, parties_weights[p][:10].reveal())
+	# parties_weights = parties_weights.transpose()
+
+	weights = sint.Array(E)
+	weights.assign(parties_weights[0][:])
+	@for_range(1, N_PARTY)
+	def _(p):
+		weights[:] += parties_weights[p][:]
+	# @for_range(E)
+	# def _(eid):
+	# 	weights[eid] = sum(parties_weights[eid])# / N_PARTY
+	# weights /= N_PARTY
+	return weights
 		
 class Graph(object):
+	def __init__(self):
+		self.N, self.E = None, None
+
 	def _load_compile(self, fn):
 		NN, NE, G_np = read_graph(fn)
 		self.N, self.E = NN, NE
 		G_np[:,:2] -= 1
 		self.link_index, self.link_edges = tab2link_graph(NN, NE, G_np)
 		self.link_index_rev, self.link_edges_rev = tab2link_graph(NN, NE, G_np, rev=True)
-
-	def __init__(self):
-		self.N, self.E = None, None
 
 	def load(self, fn=None, NN=None, NE=None, dim=None, E_new=None):
 		print_ln("Loading graph from %s" % fn)
@@ -113,6 +131,9 @@ class Graph(object):
 			self.link_index, self.link_edges, self.link_index_rev, \
 				self.link_edges_rev = load_link_graph(NN, NE, 3, True)
 		print_ln("Graph loaded: %d nodes, %d edges" % (self.N, self.E))
+		self.weights = load_weights(NE)
+		print_ln("Weights loaded: %s", self.weights.shape)
+
 		self.lmemb, self.ch = None, None
 		if dim is not None and dim > 0:
 			self.lmemb = input_tensor(NN, dim)
@@ -122,23 +143,14 @@ class Graph(object):
 			ch_index, ch_edges, ch_index_rev, \
 				ch_edges_rev = load_link_graph(NN, E_new, 4)
 			print_ln("CH loaded: %s shortcuts", ch_edges.shape)
-			self.ch = (levels, ch_index, ch_edges, ch_index_rev, ch_edges_rev)
-
-	def load_weights(self, N_PARTY):
-		E = self.E
-		parties_weights = sint.Matrix(N_PARTY, E)
-		for p in range(N_PARTY):
-			parties_weights[p].input_from(p)
-			# print_ln("P%s: %s", p, parties_weights[p][:10].reveal())
-		parties_weights = parties_weights.transpose()
-
-		weights = sint.Array(E)
-		@for_range(E)
-		def _(eid):
-			weights[eid] = sum(parties_weights[eid])# / N_PARTY
-		self.weights = weights
+			weights_ch = load_weights(E_new)
+			print_ln("CH weights loaded: %s", weights_ch.shape)
+			# weights_ch = None
+			self.ch = (levels, ch_index, ch_edges, \
+				ch_index_rev, ch_edges_rev, weights_ch)
 
 	def dist_est_lt(self, S, T):
+		# return 0
 		lmemb = self.lmemb
 		max_dist = max(lmemb[T][:] - lmemb[S][:])
 		return max_dist.max(0)
@@ -148,5 +160,5 @@ class Graph(object):
 		pi_f = self.dist_est_lt(v, T)
 		pi_r = self.dist_est_lt(S, v)
 		pi_st = self.dist_est_lt(S, T)
-		dp = pi_f - pi_r if is_for else pi_r - pi_f
-		return (dp + pi_st) / 2
+		dp = (pi_f - pi_r) if is_for else (pi_r - pi_f)
+		return (dp + pi_st) * N_PARTY // 2

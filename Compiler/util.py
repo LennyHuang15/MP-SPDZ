@@ -223,7 +223,6 @@ def argmin(x):
         return comp.if_else(a[0], b[0]), comp.if_else(a[1], b[1])
     return tree_reduce(op, enumerate(x))[0]
 
-
 def long_one(x):
     try:
         return x.long_one()
