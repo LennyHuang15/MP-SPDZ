@@ -27,7 +27,7 @@ class Heap(object):
 		def _():
 			par = (pos - 1) / 2
 			higher = arr[pos][KEY] < arr[par][KEY]
-			if(PLAIN):
+			if(arr.value_type is sint and PLAIN):
 				higher = higher.reveal()
 			for i in range(WIDTH):
 				arr[pos][i], arr[par][i] = higher.cond_swap(arr[pos][i], arr[par][i])
@@ -50,10 +50,12 @@ class Heap(object):
 		@while_do(lambda: lch < size)
 		def _():
 			having_rch = (lch < size - 1)
-			higher_rch = (arr[lch+1][KEY] < arr[lch][KEY]).reveal()
+			higher_rch = arr[lch+1][KEY] < arr[lch][KEY]
+			if(arr.value_type is sint and PLAIN):
+				higher_rch = higher_rch.reveal()
 			ch = bit_and(having_rch, higher_rch).if_else(lch+1, lch)
 			higher = arr[ch][KEY] < arr[par][KEY]
-			if(PLAIN):
+			if(arr.value_type is sint and PLAIN):
 				higher = higher.reveal()
 			for i in range(WIDTH):
 				arr[ch][i], arr[par][i] = higher.cond_swap(arr[ch][i], arr[par][i])
@@ -65,3 +67,24 @@ class Heap(object):
 			lch.update(par * 2 + 1)
 		# print_ln("pop[%s]: %s", self.size, top.reveal())
 		return top
+
+# def heap2_min(a, b):
+# 	empty_a, empty_b = (a.size <= 0), (b.size <= 0)
+# 	crash(empty_a.bit_and(empty_b))
+# 	min_dist, take_sec = a.arr.value_type(0), MemValue(True)
+# 	@if_e(empty_a.bit_or(empty_b))
+# 	def _():
+# 		@if_e(empty_a)
+# 		def _():
+# 			min_dist.update(b.top()[0])
+# 			take_sec.write(False)
+# 		@else_ # empty_b
+# 		def _():
+# 			min_dist.update(a.top()[0])
+# 	@else_
+# 	def _():
+# 		dist_a, dist_b = a.top()[0], b.top()[0]
+# 		take_sec.write(dist_a < dist_b)
+# 		min_dist.update(take_sec.if_else(dist_a, dist_b))
+# 		# min_dist.update(min(a.top()[0], b.top()[0]))
+# 	return min_dist, take_sec

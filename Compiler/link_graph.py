@@ -149,6 +149,15 @@ class Graph(object):
 			self.ch = (levels, ch_index, ch_edges, \
 				ch_index_rev, ch_edges_rev, weights_ch)
 
+			links, links_rev = [regint.Tensor([E_new, 4]) for _ in range(2)]
+			links.assign(ch_edges)
+			links_rev.assign(ch_edges_rev)
+			pws, ows = regint.Array(E_new), sint.Array(E_new)
+			pws_r, ows_r = regint.Array(E_new), sint.Array(E_new)
+			poss, poss_r = regint.Array(NN), regint.Array(NN)
+			self.chs = (links, pws, ows, poss)
+			self.chs_r = (links_rev, pws_r, ows_r, poss_r)
+
 	def dist_est_lt(self, S, T):
 		# return 0
 		lmemb = self.lmemb

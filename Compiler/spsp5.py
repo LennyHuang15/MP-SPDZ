@@ -6,51 +6,22 @@ from link_graph import Graph
 from heap import Heap
 
 # TERM_EARLY = 1
-LAZY_EDGE = 0
+# LAZY_EDGE = 1
 DEBUG = 0
-ASSERT = 1
 
-def _explore_node(graph, S, T, min_dist, obest_bridge, \
-		expand_s, pq, exploreds, dists, exploreds_op, dists_op, \
-		nid, edge, dist):
-	levels, weights, lmemb = graph.ch[0], graph.ch[-1], graph.lmemb
-	nid_, _, w, wid = edge
-	if DEBUG:
-		print_ln("exploring %s,%s,%s", nid_, w, dist.reveal())
-	@if_(exploreds[nid_] < 0)
+def _explore_next(poss, nid, links, exploreds, ows, dist):
+	pos_ch = regint(poss[nid])
+	nid_, w, valid, wid = links[pos_ch]
+	@if_(valid != DATA_BOUND)
 	def _():
-		up_level = levels[nid] < levels[nid_]
-		explored_op = exploreds_op[nid_] >= 0
-		@if_(explored_op.bit_or(up_level))
+		@if_(exploreds[nid_] < 0)
 		def _():
-			if LAZY_EDGE:
-				dist_ = dist + w
-				if lmemb is not None:
-					pot_dist_ = graph.pot_func_bidir(S, T, nid_, expand_s)
-					dist_.iadd(pot_dist_)
-				if DEBUG:
-					print_ln("add %s, %s, %s", dist_.reveal(), -nid-1, nid_)
-				pq.push(sint_tuple(dist_, -nid-1, nid_))
-			else:
-				dist_ = dist + weights[wid]
-				@if_(explored_op)
-				def _():
-					bi_dist_ = dist_ + dists_op[nid_]
-					to_update = (bi_dist_ < min_dist)
-					maybe_set(min_dist, to_update, bi_dist_)
-					maybe_set(obest_bridge[1 - expand_s], to_update, nid)
-					maybe_set(obest_bridge[expand_s], to_update, nid_)
-				@if_(up_level)
-				def _():
-					if lmemb is not None:
-						pot_dist_ = graph.pot_func_bidir(S, T, nid_, expand_s)
-						dist_.iadd(pot_dist_)
-					if DEBUG:
-						print_ln("add %s, %s, %s", dist_.reveal(), nid, nid_)
-					pq.push(sint_tuple(dist_, nid, nid_))
+			dist_ = dist + ows[pos_ch]
+			pq.push(sint_tuple(dist_, -nid-1, nid_))
+		poss[nid] += 1
 
 def _expand_side(graph, S, T, min_dist, obest_bridge, \
-		expand_s, pq, link_index, link_edges, \
+		expand_s, pq, link_index, link_edges, chs, \
 		exploreds, dists, exploreds_op, dists_op):
 	dist, opre_nid, onid = pq.pop()
 	pre_nid, nid = opre_nid.reveal(), onid.reveal()
@@ -65,9 +36,6 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 			dist.iadd(-pot_dist)
 		@if_e(pre_nid < 0)
 		def _():
-			is_lazy = MemValue(LAZY_EDGE)
-			if ASSERT:
-				crash(is_lazy.bit_not())
 			nid_ = regint(nid)
 			nid.update(-pre_nid - 1)
 			up_level = levels[nid] < levels[nid_]
@@ -76,9 +44,8 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 			def _():
 				eid = lin_search(link_edges, link_index[nid], \
 					link_index[nid+1], 0, nid_)
-				if ASSERT:
-					crash(eid == -1)
-				_, _, w, wid = link_edges[eid]
+				crash(eid == -1)
+				_, w, _, wid = link_edges[eid]
 				w_ = weights[wid]
 				# crash((w_ < w).reveal())
 				dist_ = dist + w_ - w
@@ -98,14 +65,49 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 		@else_
 		def _():
 			exploreds[nid], dists[nid] = pre_nid, dist
-			@for_range(link_index[nid], link_index[nid+1])
+			# sort the neighbors
+			links, pws, ows, poss = chs
+			st, en = link_index[nid], link_index[nid+1]
+			pos = regint(st)
+			@for_range(st, en)
 			def _(eid):
-				_explore_node(graph, S, T, min_dist, obest_bridge, \
-					expand_s, pq, exploreds, dists, exploreds_op, dists_op, \
-					nid, link_edges[eid], dist)
+				nid_, w, _, wid = edge
+				@if_(exploreds[nid_] < 0)
+				def _():
+					explored_op = exploreds_op[nid_] >= 0
+					
+					up_level = levels[nid] < levels[nid_]
+					@if_(explored_op.bit_or(up_level))
+					def _():
+						links[pos] = edge
+						dist_ = regint(w)
+						if lmemb is not None:
+							pot_dist_ = graph.pot_func_bidir(S, T, nid_, expand_s)
+							dist_.iadd(pot_dist_)
+						pws[pos] = dist_
+						pos.iadd(1)
+			@if_(pos != en)
+			def _():
+				links[pos][2] = DATA_BOUND
+				en.update(pos)
+				# _explore_node(graph, S, T, min_dist, obest_bridge, \
+				# 	expand_s, pq, exploreds, dists, exploreds_op, dists_op, \
+				# 	nid, link_edges[eid], dist)
+			insertion_sort(links, st, en, pws)
+			@for_range(st, en)
+			def _(eid):
+				nid_, w, _, wid = links[eid]
+				ows[eid] = weights[wid] + pws[eid] - w
+			insertion_sort(links, st, en, ows, True)
+			# explore the first child neighbor
+			poss[nid] = 0
+			_explore_next(poss, nid, links, exploreds, ows, dist)
+			# explore the next sibling neighbor
+			dist_sib = dists[pre_nid]
+			_explore_next(poss, pre_nid, links, exploreds, ows, dist_sib)
 	
 def SPSP(graph, S, T):
-	print_ln("SPSP3: %s -> %s", S, T)
+	print_ln("SPSP4: %s -> %s", S, T)
 	@if_(S == T)
 	def _():
 		ans, ans_dist = regint.Array(1), sint.Array(1)
@@ -114,6 +116,7 @@ def SPSP(graph, S, T):
 	N, E = graph.N, graph.E
 	levels, link_index_for, link_edges_for, \
 		link_index_rev, link_edges_rev, weights = graph.ch
+	chs_for, chs_rev = graph.chs, graph.chs_r
 
 	exploreds_s, dists_s = regint.Array(N), sint.Array(N)
 	exploreds_t, dists_t = regint.Array(N), sint.Array(N)
@@ -140,16 +143,15 @@ def SPSP(graph, S, T):
 		@if_e(expand_s)
 		def _():
 			_expand_side(graph, S, T, min_dist, obest_bridge, \
-				True, qs, link_index_for, link_edges_for, \
+				True, qs, link_index_for, link_edges_for, chs_for, \
 				exploreds_s, dists_s, exploreds_t, dists_t)
 		@else_ # expand t
 		def _():
 			_expand_side(graph, S, T, min_dist, obest_bridge, \
-				False, qt, link_index_rev, link_edges_rev, \
+				False, qt, link_index_rev, link_edges_rev, chs_rev, \
 				exploreds_t, dists_t, exploreds_s, dists_s)
 	best_s, best_t = [x.reveal() for x in obest_bridge]
-	if ASSERT:
-		crash((best_s == -1).bit_or(best_t == -1))
+	crash((best_s == -1).bit_or(best_t == -1))
 	ans_s, ans_dist_s, len_s = obacktrace_path(S, best_s, exploreds_s, dists_s, N)
 	ans_t, ans_dist_t, len_t = obacktrace_path(T, best_t, exploreds_t, dists_t, N)
 	ans = vec_merge(ans_s, len_s, ans_t, len_t)

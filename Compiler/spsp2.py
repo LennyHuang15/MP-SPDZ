@@ -6,14 +6,14 @@ from link_graph import Graph
 from heap import Heap
 
 # TERM_EARLY = 0
-LAZY_EDGE = 0
+LAZY_EDGE = 1
 DEBUG = 0
 
 def _explore_node(graph, S, T, min_dist, obest_bridge, \
 		expand_s, pq, exploreds, dists, exploreds_op, dists_op, \
 		nid, edge, dist):
 	levels, weights, lmemb = graph.ch[0], graph.ch[-1], graph.lmemb
-	nid_, w, _, wid = edge
+	nid_, _, w, wid = edge
 	if DEBUG:
 		print_ln("exploring %s,%s,%s", nid_, w, dist.reveal())
 	@if_((exploreds[nid_] < 0).bit_and(levels[nid] < levels[nid_]))
@@ -41,8 +41,10 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 		if lmemb is not None:
 			pot_dist = graph.pot_func_bidir(S, T, nid, expand_s)
 			dist.iadd(-pot_dist)
-		@if_e((pre_nid < 0).bit_and(LAZY_EDGE))
+		@if_e(pre_nid < 0)
 		def _():
+			is_lazy = MemValue(LAZY_EDGE)
+			crash(is_lazy.bit_not())
 			nid_ = regint(nid)
 			nid.update(-pre_nid - 1)
 			down_level = levels[nid] >= levels[nid_]
@@ -51,7 +53,7 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 				link_index[nid+1], 0, nid_)
 			# print_ln_if(eid < 0, "search %s->%s: %s", nid, nid_, eid)
 			crash(eid == -1)
-			_, w, _, wid = link_edges[eid]
+			_, _, w, wid = link_edges[eid]
 			w_ = weights[wid]
 			# crash((w_ < w).reveal())
 			dist_ = dist + w_ - w

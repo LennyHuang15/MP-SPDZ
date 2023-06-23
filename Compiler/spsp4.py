@@ -6,51 +6,33 @@ from link_graph import Graph
 from heap import Heap
 
 # TERM_EARLY = 1
-LAZY_EDGE = 0
+# LAZY_EDGE = 1
 DEBUG = 0
 ASSERT = 1
 
-def _explore_node(graph, S, T, min_dist, obest_bridge, \
-		expand_s, pq, exploreds, dists, exploreds_op, dists_op, \
-		nid, edge, dist):
-	levels, weights, lmemb = graph.ch[0], graph.ch[-1], graph.lmemb
-	nid_, _, w, wid = edge
-	if DEBUG:
-		print_ln("exploring %s,%s,%s", nid_, w, dist.reveal())
-	@if_(exploreds[nid_] < 0)
+def _explore_next_virt(poss, link_index, nid, dists, \
+		links, exploreds, exploreds_op, levels, pq):
+	pos, en = poss[nid], link_index[nid+1]
+	@while_do(lambda: pos < en)
 	def _():
-		up_level = levels[nid] < levels[nid_]
-		explored_op = exploreds_op[nid_] >= 0
-		@if_(explored_op.bit_or(up_level))
+		nid_, _, dist_p, wid = links[pos]
+		@if_(exploreds[nid_] < 0)
 		def _():
-			if LAZY_EDGE:
-				dist_ = dist + w
-				if lmemb is not None:
-					pot_dist_ = graph.pot_func_bidir(S, T, nid_, expand_s)
-					dist_.iadd(pot_dist_)
+			up_level = levels[nid] < levels[nid_]
+			explored_op = exploreds_op[nid_] >= 0
+			@if_(explored_op.bit_or(up_level))
+			def _():
+				dist_ = dists[nid] + dist_p
 				if DEBUG:
-					print_ln("add %s, %s, %s", dist_.reveal(), -nid-1, nid_)
+					print_ln("add virt: %s,%s,%s", -nid-1, nid_, dist_.reveal())
 				pq.push(sint_tuple(dist_, -nid-1, nid_))
-			else:
-				dist_ = dist + weights[wid]
-				@if_(explored_op)
-				def _():
-					bi_dist_ = dist_ + dists_op[nid_]
-					to_update = (bi_dist_ < min_dist)
-					maybe_set(min_dist, to_update, bi_dist_)
-					maybe_set(obest_bridge[1 - expand_s], to_update, nid)
-					maybe_set(obest_bridge[expand_s], to_update, nid_)
-				@if_(up_level)
-				def _():
-					if lmemb is not None:
-						pot_dist_ = graph.pot_func_bidir(S, T, nid_, expand_s)
-						dist_.iadd(pot_dist_)
-					if DEBUG:
-						print_ln("add %s, %s, %s", dist_.reveal(), nid, nid_)
-					pq.push(sint_tuple(dist_, nid, nid_))
+				pos.iadd(1)
+				break_loop()
+		pos.iadd(1)
+	poss[nid] = pos
 
 def _expand_side(graph, S, T, min_dist, obest_bridge, \
-		expand_s, pq, link_index, link_edges, \
+		expand_s, pq, link_index, link_edges, chs, \
 		exploreds, dists, exploreds_op, dists_op):
 	dist, opre_nid, onid = pq.pop()
 	pre_nid, nid = opre_nid.reveal(), onid.reveal()
@@ -60,17 +42,18 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 	@if_(exploreds[nid] < 0) # to explore
 	def _():
 		levels, weights, lmemb = graph.ch[0], graph.ch[-1], graph.lmemb
+		links, pws, ows, poss = chs
 		if lmemb is not None:
 			pot_dist = graph.pot_func_bidir(S, T, nid, expand_s)
 			dist.iadd(-pot_dist)
 		@if_e(pre_nid < 0)
 		def _():
-			is_lazy = MemValue(LAZY_EDGE)
-			if ASSERT:
-				crash(is_lazy.bit_not())
 			nid_ = regint(nid)
 			nid.update(-pre_nid - 1)
+			if ASSERT:
+				crash(exploreds[nid] < 0)
 			up_level = levels[nid] < levels[nid_]
+			# crash(up_level.bit_not())
 			explored_op = exploreds_op[nid_] >= 0
 			@if_(explored_op.bit_or(up_level))
 			def _():
@@ -79,9 +62,8 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 				if ASSERT:
 					crash(eid == -1)
 				_, _, w, wid = link_edges[eid]
-				w_ = weights[wid]
 				# crash((w_ < w).reveal())
-				dist_ = dist + w_ - w
+				dist_ = dist + weights[wid] - w
 				@if_(explored_op)
 				def _():
 					bi_dist_ = dist_ + dists_op[nid_]
@@ -94,18 +76,36 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 					if lmemb is not None:
 						pot_dist = graph.pot_func_bidir(S, T, nid_, expand_s)
 						dist_.iadd(pot_dist)
+					if DEBUG:
+						print_ln("add real: %s,%s,%s", nid, nid_, dist_.reveal())
 					pq.push(sint_tuple(dist_, nid, nid_))
-		@else_
+		@else_ # pre_nid >= 0
 		def _():
 			exploreds[nid], dists[nid] = pre_nid, dist
-			@for_range(link_index[nid], link_index[nid+1])
+			# sort the neighbors
+			st, en = link_index[nid], link_index[nid+1]
+			OFFSET = 2
+			@for_range(st, en)
 			def _(eid):
-				_explore_node(graph, S, T, min_dist, obest_bridge, \
-					expand_s, pq, exploreds, dists, exploreds_op, dists_op, \
-					nid, link_edges[eid], dist)
+				nid_, _, w, wid = link_edges[eid]
+				dist_p = regint(w)
+				if lmemb is not None:
+					pot_dist_ = graph.pot_func_bidir(S, T, nid_, expand_s)
+					dist_p.iadd(pot_dist_)
+				links[eid] = (nid_, -1, dist_p, wid)
+			insertion_sort_inplace(links, st, en, OFFSET)
+			if DEBUG:
+				print_ln("sorted links: ")
+				@for_range(st, en)
+				def _(eid):
+					print_ln("l: %s", links[eid])
+			# explore the first child neighbor
+			poss[nid] = st
+		_explore_next_virt(poss, link_index, nid, dists, \
+			links, exploreds, exploreds_op, levels, pq)
 	
 def SPSP(graph, S, T):
-	print_ln("SPSP3: %s -> %s", S, T)
+	print_ln("SPSP4: %s -> %s", S, T)
 	@if_(S == T)
 	def _():
 		ans, ans_dist = regint.Array(1), sint.Array(1)
@@ -114,6 +114,7 @@ def SPSP(graph, S, T):
 	N, E = graph.N, graph.E
 	levels, link_index_for, link_edges_for, \
 		link_index_rev, link_edges_rev, weights = graph.ch
+	chs_for, chs_rev = graph.chs, graph.chs_r
 
 	exploreds_s, dists_s = regint.Array(N), sint.Array(N)
 	exploreds_t, dists_t = regint.Array(N), sint.Array(N)
@@ -140,12 +141,12 @@ def SPSP(graph, S, T):
 		@if_e(expand_s)
 		def _():
 			_expand_side(graph, S, T, min_dist, obest_bridge, \
-				True, qs, link_index_for, link_edges_for, \
+				True, qs, link_index_for, link_edges_for, chs_for, \
 				exploreds_s, dists_s, exploreds_t, dists_t)
 		@else_ # expand t
 		def _():
 			_expand_side(graph, S, T, min_dist, obest_bridge, \
-				False, qt, link_index_rev, link_edges_rev, \
+				False, qt, link_index_rev, link_edges_rev, chs_rev, \
 				exploreds_t, dists_t, exploreds_s, dists_s)
 	best_s, best_t = [x.reveal() for x in obest_bridge]
 	if ASSERT:
