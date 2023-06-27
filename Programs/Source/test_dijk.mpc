@@ -43,7 +43,7 @@ with open(fn_param) as fp:
 	S, num = read_ints(fp)[:2]
 
 # from dijk1 import SSSP as SP
-from spsp3 import SPSP as SP
+from spsp4 import SPSP as SP
 start_timer(1)
 ans, ans_dist, size_ans = SP(graph, S, num)
 stop_timer(1)
