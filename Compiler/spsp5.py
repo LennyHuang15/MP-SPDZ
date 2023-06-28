@@ -29,24 +29,20 @@ def _explore_next(graph, link_index, chs, nid, dists, dists_op, pq, \
 		nid_, dist_p, w, wid = links[pos]
 		@if_(exploreds[nid_] < 0)
 		def _():
-			@if_(levels[nid] >= levels[nid_])
-			def _(): # will not be up_level edges any more
-				# crash(dist_p != -1)
-				pos.update(en)
-				break_loop()
 			dist = dists[nid]
 			@if_(exploreds_op[nid_] >= 0)
 			def _():
 				dist_ = dist + weights[wid]
 				_update_bridge(dist_, dists_op, nid, nid_, expand_s, \
 					min_dist, obest_bridge)
-			# add an up_level edge
-			dist_ = dist + ows[pos]
-			if DEBUG:
-				print_ln("add real: %s,%s,%s", nid, nid_, dist_.reveal())
-			pq.push(sint_tuple(dist_, nid, nid_))
-			pos.iadd(1)
-			break_loop()
+			@if_(levels[nid] < levels[nid_])
+			def _(): # add an up_level edge
+				dist_ = dist + ows[pos]
+				if DEBUG:
+					print_ln("add real: %s,%s,%s", nid, nid_, dist_.reveal())
+				pq.push(sint_tuple(dist_, nid, nid_))
+				pos.iadd(1)
+				break_loop()
 		pos.iadd(1)
 	poss[nid] = pos
 
@@ -63,7 +59,9 @@ def _sort_neighbors(graph, S, T, nid, expand_s, dists, dists_op, \
 		nid_, _, w, wid = link_edges[eid]
 		@if_(exploreds[nid_] < 0)
 		def _():
-			@if_e(levels[nid] < levels[nid_])
+			explored_op = exploreds_op[nid_] >= 0
+			up_level = levels[nid] < levels[nid_]
+			@if_(explored_op.bit_or(up_level))
 			def _(): # store the up_level edges
 				dist_p = regint(w)
 				if lmemb is not None:
@@ -72,16 +70,6 @@ def _sort_neighbors(graph, S, T, nid, expand_s, dists, dists_op, \
 				# first sort by plaintext dist as lower bound
 				links[pos] = (nid_, dist_p, w, wid)
 				pos.iadd(1)
-			@else_
-			def _():
-				@if_(exploreds_op[nid_] >= 0)
-				def _(): # process the bridge edges then remove
-					dist_ = dists[nid] + weights[wid]
-					_update_bridge(dist_, dists_op, nid, nid_, expand_s, \
-						min_dist, obest_bridge)
-	@if_(pos < en)
-	def _():
-		links[pos][1] = -1 # mark the end
 	en.update(pos)
 	insertion_sort_inplace(links, st, en, OFFSET)
 	# then sort by obliv real dist
