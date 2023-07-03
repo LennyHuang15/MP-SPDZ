@@ -1,6 +1,7 @@
 from Compiler.types import *
 from Compiler.library import print_ln, if_, while_do, break_loop
 from Compiler.program import Program
+from util_mpc import OFS_HEAP, add_stat
 from util import bit_and
 
 # WIDTH = 2
@@ -11,6 +12,7 @@ class Heap(object):
 		self.WIDTH = WIDTH
 		self.capacity, self.size = regint(capacity), regint(0)
 		self.arr = value_type.Tensor([capacity, WIDTH])
+		# self.n_op = regint(0)
 	def __len__(self):
 		return self.size
 
@@ -31,6 +33,8 @@ class Heap(object):
 				higher = higher.reveal()
 			for i in range(WIDTH):
 				arr[pos][i], arr[par][i] = higher.cond_swap(arr[pos][i], arr[par][i])
+			add_stat(OFS_HEAP)
+			# self.n_op.iadd(1)
 			if(PLAIN):
 				@if_(higher.bit_not())
 				def _():
@@ -59,6 +63,8 @@ class Heap(object):
 				higher = higher.reveal()
 			for i in range(WIDTH):
 				arr[ch][i], arr[par][i] = higher.cond_swap(arr[ch][i], arr[par][i])
+			add_stat(OFS_HEAP)
+			# self.n_op.iadd(1)
 			if(PLAIN):
 				@if_(higher.bit_not())
 				def _():

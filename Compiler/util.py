@@ -213,13 +213,14 @@ def min(x, y=None):
         return if_else(x < y, x, y)
 
 def argmin(x):
-    """ Compute index of minimum element.
-
-    :param x: iterable
-    :returns: sint or 0 if :py:obj:`x` has length 1
-    """
     def op(a, b):
         comp = (a[1] < b[1])
+        return comp.if_else(a[0], b[0]), comp.if_else(a[1], b[1])
+    return tree_reduce(op, enumerate(x))[0]
+
+def argmax(x):
+    def op(a, b):
+        comp = (a[1] > b[1])
         return comp.if_else(a[0], b[0]), comp.if_else(a[1], b[1])
     return tree_reduce(op, enumerate(x))[0]
 

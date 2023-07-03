@@ -2,7 +2,7 @@
 
 # prog=tutorial
 prog=test_dijk
-# prog=test_heap
+# prog=test_personal
 
 other=''
 # Mod prime / GF2^128
@@ -33,6 +33,7 @@ bits=64
 ./compile.py $other $mix -$opt $bits $prog
 
 opts=''
+# opts='-v'
 # opts="--bucket-size 10"
 fin=''
 fin="-IF Player-Data/Dijk/CAL/graph"
@@ -44,5 +45,5 @@ do
 	exec=Scripts/$ptc.sh
 	# exec="Scripts/compile-run.py -E $ptc -$opt $bits"
 
-	$exec $fin $prog #> $ptc.out
+	$exec $fin $opts $prog #> $ptc.out
 done

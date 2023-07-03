@@ -1,5 +1,5 @@
 from Compiler.types import sint, regint
-from Compiler.library import print_ln, if_, if_e, else_
+from Compiler.library import print_ln, print_str, if_, if_e, else_
 from Compiler.library import for_range, while_do, break_loop
 
 N_PARTY = 2
@@ -7,6 +7,8 @@ DATA_BOUND = int(1e7)
 
 def sint_tuple(*args):
 	return tuple(sint(x) for x in args)
+def plain_tuple(*args):
+	return tuple(x for x in args)
 
 def maybe_set(var, cond, val):
 	var.update(cond.if_else(val, var))
@@ -85,3 +87,19 @@ def vec_merge(vec, l, vec_rev, l_rev):
 	def _(i):
 		vec[l + i] = vec_rev[i]
 	return vec
+
+N_STATS = 5
+OFS_EXPLORE, OFS_PUSH, OFS_SEARCH, OFS_UPDATE, OFS_HEAP = range(N_STATS)
+stats = regint.Array(N_STATS)
+
+def init_stats():
+	stats.assign_all(0)
+def add_stat(OFS):
+	stats[OFS] += 1
+def print_stats():
+	print_str("n_explore[%s], ", stats[OFS_EXPLORE])
+	print_str("n_push[%s], ", stats[OFS_PUSH])
+	print_str("n_search[%s], ", stats[OFS_SEARCH])
+	print_str("n_update[%s], ", stats[OFS_UPDATE])
+	print_str("n_heap[%s], ", stats[OFS_HEAP])
+	print_ln("")

@@ -22,10 +22,12 @@ def _explore_next_virt(poss, link_index, nid, dists, \
 			explored_op = exploreds_op[nid_] >= 0
 			@if_(explored_op.bit_or(up_level))
 			def _():
+				add_stat(OFS_SEARCH)
 				dist_ = dists[nid] + dist_p
 				if DEBUG:
 					print_ln("add virt: %s,%s,%s", -nid-1, nid_, dist_.reveal())
 				pq.push(sint_tuple(dist_, -nid-1, nid_))
+				add_stat(OFS_PUSH)
 				pos.iadd(1)
 				break_loop()
 		pos.iadd(1)
@@ -39,6 +41,7 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 	if DEBUG:
 		c = 'S' if expand_s else 'T'
 		print_ln("top%s[%s]: %s, %s, %s", c, exploreds[nid]>=0, pre_nid, nid, dist.reveal())
+	add_stat(OFS_EXPLORE)
 	@if_(exploreds[nid] < 0) # to explore
 	def _():
 		levels, weights, lmemb = graph.ch[0], graph.ch[-1], graph.lmemb
@@ -71,6 +74,7 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 					maybe_set(min_dist, to_update, bi_dist_)
 					maybe_set(obest_bridge[1 - expand_s], to_update, nid)
 					maybe_set(obest_bridge[expand_s], to_update, nid_)
+					add_stat(OFS_UPDATE)
 				@if_(up_level)
 				def _():
 					if lmemb is not None:
@@ -79,6 +83,7 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 					if DEBUG:
 						print_ln("add real: %s,%s,%s", nid, nid_, dist_.reveal())
 					pq.push(sint_tuple(dist_, nid, nid_))
+					add_stat(OFS_PUSH)
 		@else_ # pre_nid >= 0
 		def _():
 			exploreds[nid], dists[nid] = pre_nid, dist
@@ -106,6 +111,7 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 	
 def SPSP(graph, S, T):
 	print_ln("SPSP4: %s -> %s", S, T)
+	init_stats()
 	@if_(S == T)
 	def _():
 		ans, ans_dist = regint.Array(1), sint.Array(1)
@@ -148,6 +154,7 @@ def SPSP(graph, S, T):
 			_expand_side(graph, S, T, min_dist, obest_bridge, \
 				False, qt, link_index_rev, link_edges_rev, chs_rev, \
 				exploreds_t, dists_t, exploreds_s, dists_s)
+	print_stats()
 	best_s, best_t = [x.reveal() for x in obest_bridge]
 	if ASSERT:
 		crash((best_s == -1).bit_or(best_t == -1))
