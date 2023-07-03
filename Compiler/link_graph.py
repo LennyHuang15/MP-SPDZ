@@ -6,42 +6,6 @@ import numpy as np
 from util import max, argmax
 from util_mpc import N_PARTY, print_regvec
 
-'''Read graph in compile time (slow)'''
-def read_graph(fn):
-	G_np = np.loadtxt(fn, dtype=int, skiprows=1, delimiter=' ')
-	with open(fn, 'r') as fp:
-		st = fp.readline()
-		NN, NE = [int(x) for x in st.split(' ')]
-	return NN, NE, G_np
-def save_graph(fn, G_np, NN, NE):
-	np.savetxt(fn_g, G_np, fmt="%d", header="%d %d"%(NN, NE), comments="")
-
-def tab2link_graph(NN, NE, G_np, rev=False):
-	G_np = np.concatenate((G_np, np.arange(NE)[:, np.newaxis]), axis=-1)
-	print(G_np.shape)
-	sort_col_idx = 1 if rev else 0
-	sort_col = G_np[:, sort_col_idx]
-	idxs = sort_col.argsort()
-	# print(G_np[idxs])
-	link_edges = np.delete(G_np, sort_col_idx, axis=1)[idxs]
-	nodes, cnts = np.unique(sort_col, return_counts=True)
-	assert (np.diff(nodes) == 1).all()
-	# print(nodes, cnts)
-	cum = cnts.cumsum()
-	assert cum[-1] == NE
-	link_index = np.concatenate(([0], cum))
-	# print(link_index.shape, link_index)
-	link_index, link_edges = link2array(link_index, link_edges)
-	return link_index, link_edges
-def link2array(link_index_, link_edges_):
-	link_index = regint.Array(len(link_index_))
-	link_index.assign(link_index_.tolist())
-	link_edges = regint.Tensor(link_edges_.shape)
-	for i in range(len(link_edges_)):
-		link_edges[i] = link_edges_[i].tolist()
-	return link_index, link_edges
-
-'''Read graph in runtime (fast but codes long)'''
 def input_array(length):
 	arr = regint.Array(length)
 	@for_range(length)
@@ -102,37 +66,22 @@ def _load_array_parties(size):
 	return parties_arr, personal_arrs
 def load_weights(E):
 	parties_weights, parties_ws = _load_array_parties(E)
-	# parties_weights = parties_weights.transpose()
 	weights = sint.Array(E)
 	weights.assign(parties_weights[0][:])
 	@for_range(1, N_PARTY)
 	def _(p):
 		weights[:] += parties_weights[p][:]
-	# @for_range(E)
-	# def _(eid):
-	# 	weights[eid] = sum(parties_weights[eid])# / N_PARTY
-	# weights /= N_PARTY
 	return weights#, parties_ws
 		
 class Graph(object):
 	def __init__(self):
 		self.N, self.E = None, None
 
-	def _load_compile(self, fn):
-		NN, NE, G_np = read_graph(fn)
-		self.N, self.E = NN, NE
-		G_np[:,:2] -= 1
-		self.link_index, self.link_edges = tab2link_graph(NN, NE, G_np)
-		self.link_index_rev, self.link_edges_rev = tab2link_graph(NN, NE, G_np, rev=True)
-
 	def load(self, fn=None, NN=None, NE=None, dim=None, E_new=None):
 		print_ln("Loading graph from %s" % fn)
-		if fn is not None:
-			self._load_compile(fn)
-		else:
-			self.N, self.E = NN, NE
-			self.link_index, self.link_edges, self.link_index_rev, \
-				self.link_edges_rev = load_link_graph(NN, NE, 3, True)
+		self.N, self.E = NN, NE
+		self.link_index, self.link_edges, self.link_index_rev, \
+			self.link_edges_rev = load_link_graph(NN, NE, 3, True)
 		print_ln("Graph loaded: %d nodes, %d edges" % (self.N, self.E))
 		self.weights = load_weights(NE)
 		print_ln("Weights loaded: %s", self.weights.shape)
@@ -165,7 +114,6 @@ class Graph(object):
 		self.S, self.T = S, T
 		NN, dim = self.N, self.dim
 		# dist table of (S,v) and (v,T)
-		# self._build_static_table(S, T)
 		self.static_table = input_tensor(2, NN)
 		_, self.dynamic_table = _load_array_parties(2 * NN)
 		# dynamic LT embedding
@@ -175,23 +123,6 @@ class Graph(object):
 		self.dist_ST = self.dist_est_static(S, T, True)
 		self.dist_ST_ps = [self.dist_est_dyn(S, T, p, True) for p in range(N_PARTY)]
 
-	def _build_static_table(self, S, T):
-		N = self.N
-		from dijk3 import SSSP as SP
-		self.static_table = regint.Tensor([2, N])
-		for idx in range(2):
-			src = S if idx == 0 else T
-			link_index = self.link_index if idx == 0 else self.link_index_rev
-			link_edges = self.link_edges if idx == 0 else self.link_edges_rev
-			ans, ans_dist, size_ans = SP(self, src, static_weights=True, \
-				link_index=link_index, link_edges=link_edges)
-			crash(size_ans != N)
-			@for_range(N)
-			def _(i):
-				nid, dist = ans[i], ans_dist[i]
-				self.static_table[idx][nid] = dist
-		print_ln("Static dist table built: %s", self.static_table.shape)
-	
 	def _dist_est_static_lt(self, S, T):
 		max_dist = max(self.lmemb[T][:] - self.lmemb[S][:])
 		return max_dist.max(0)
@@ -218,12 +149,6 @@ class Graph(object):
 	# def dist_est(self, S, T, from_S=None):
 	# 	return self.dist_est_static(S, T, from_S)
 	# 	return self.dist_est_dyn(S, T, from_S)
-		# a = self._dist_est_static_lt(S, T) * N_PARTY
-		# b = self._dist_est_dynamic_lt(S, T)
-		# print_ln("%s->%s: %s vs %s", S, T, a, b.reveal())
-		# b = self._dist_est_static_sp(S, T, from_S)
-		# runtime_error_if(a > b, "%s->%s: %s > %s", S, T, a, b)
-		# return b
 	
 	def pot_func_bidir(self, S, T, v, is_for):
 		if self.lmemb is None:

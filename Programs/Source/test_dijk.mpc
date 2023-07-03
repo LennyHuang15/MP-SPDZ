@@ -12,27 +12,16 @@ dir_pub = prog.programs_dir + "/Public-Input/"
 dir_city = dir_pub + "graph/%s/" % (city)
 fn_cin = dir_city + "compile.in"
 
-LOAD_RUNTIME = 1
 graph = Graph()
-if LOAD_RUNTIME:
-	N, E, dim, E_new = [None for _ in range(4)]
-	with open(fn_cin) as fp:
-		N, E = read_ints(fp)[:2]
-		N_, dim = read_ints(fp)[:2]
-		assert N_ == N
-		N_, E_new = read_ints(fp)[:2]
-		assert N_ == N
-	print(N, E, dim, E_new)
-	graph.load(None, N, E, dim, E_new)
-else:
-	fn_g = dir_city + "%s.gr" % (city)
-	graph.load(fn_g)
-# N, E = graph.N, graph.E
-# weights = graph.weights
-# @for_range(0, E, 100)
-# def _(eid):
-# 	weights[eid].reveal()
-# print_ln("weights %s", weights[:10].reveal())
+N, E, dim, E_new = [None for _ in range(4)]
+with open(fn_cin) as fp:
+	N, E = read_ints(fp)[:2]
+	N_, dim = read_ints(fp)[:2]
+	assert N_ == N
+	N_, E_new = read_ints(fp)[:2]
+	assert N_ == N
+print(N, E, dim, E_new)
+graph.load(None, N, E, dim, E_new)
 
 fn_param = dir_city + "params.in"
 fn_param = fn_cin
@@ -45,28 +34,19 @@ start_timer(2)
 graph._build_ST(S, T)
 stop_timer(2)
 
-v = 4714
-for p in range(N_PARTY):
-	dist_S = graph.dist_est_dyn(S, v, p, True)
-	dist_T = graph.dist_est_dyn(v, T, p, False)
-	print_ln_to(p, "%s[%s]: %s,%s", v, p, dist_S, dist_T)
-dist_for = graph.pot_func_bidir_dyn(S, T, v, True)
-dist_rev = graph.pot_func_bidir_dyn(S, T, v, False)
-print_ln("dist_est_dyn: %s, %s", dist_for.reveal(), dist_rev.reveal())
-
-# # from dijk3 import SSSP as SP
-# from spsp3 import SPSP as SP
-# start_timer(1)
-# # ans, ans_dist, size_ans = SP(graph, S, num=100, \
-# # 		static_weights=False, link_index=None, link_edges=None)
-# ans, ans_dist, size_ans = SP(graph, S, T)
-# stop_timer(1)
-# n_report = 10
-# ans_dist = ans_dist.reveal()
-# @for_range(size_ans.min(10))
-# def _(i):
-# 	print_ln("[%s]: %s, %s", i, ans[i], ans_dist[i])
-# @if_(n_report < size_ans)
-# def _():
-# 	last = size_ans - 1
-# 	print_ln("[%s]: %s, %s", last, ans[last], ans_dist[last])
+# from dijk3 import SSSP as SP
+from spsp3 import SPSP as SP
+start_timer(1)
+# ans, ans_dist, size_ans = SP(graph, S, num=100, \
+# 		static_weights=False, link_index=None, link_edges=None)
+ans, ans_dist, size_ans = SP(graph, S, T)
+stop_timer(1)
+n_report = 10
+ans_dist = ans_dist.reveal()
+@for_range(size_ans.min(10))
+def _(i):
+	print_ln("[%s]: %s, %s", i, ans[i], ans_dist[i])
+@if_(n_report < size_ans)
+def _():
+	last = size_ans - 1
+	print_ln("[%s]: %s, %s", last, ans[last], ans_dist[last])
