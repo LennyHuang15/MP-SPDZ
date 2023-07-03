@@ -86,7 +86,6 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 	
 def SPSP(graph, S, T):
 	print_ln("SPSP2: %s -> %s", S, T)
-	init_stats()
 	@if_(S == T)
 	def _():
 		ans, ans_dist = regint.Array(1), sint.Array(1)
@@ -133,7 +132,6 @@ def SPSP(graph, S, T):
 			_expand_side(graph, S, T, min_dist, obest_bridge, \
 				False, qt, link_index_rev, link_edges_rev, \
 				exploreds_t, dists_t, exploreds_s, dists_s)
-	print_stats()
 	best_s, best_t = [x.reveal() for x in obest_bridge]
 	crash((best_s == -1).bit_or(best_t == -1))
 	ans_s, ans_dist_s, len_s = obacktrace_path(S, best_s, exploreds_s, dists_s, N)

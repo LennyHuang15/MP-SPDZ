@@ -113,7 +113,6 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 	
 def SPSP(graph, S, T):
 	print_ln("SPSP3: %s -> %s", S, T)
-	init_stats()
 	@if_(S == T)
 	def _():
 		ans, ans_dist = regint.Array(1), sint.Array(1)
@@ -139,6 +138,9 @@ def SPSP(graph, S, T):
 		dist_top = qs.top()[0] + qt.top()[0] - p_st
 		@if_((dist_top >= min_dist).reveal())
 		def _():
+			datas = [qs.top()[0], qt.top()[0], p_st, dist_top, min_dist]
+			if DEBUG:
+				print_ln("break, %s,%s,%s, %s>=%s", *[x.reveal() for x in datas])
 			break_loop()
 		expand_s.write(expand_s.bit_not())
 		empty_s, empty_t = (qs.size == 0), (qt.size == 0)
@@ -155,7 +157,6 @@ def SPSP(graph, S, T):
 			_expand_side(graph, S, T, min_dist, obest_bridge, \
 				False, qt, link_index_rev, link_edges_rev, \
 				exploreds_t, dists_t, exploreds_s, dists_s)
-	print_stats()
 	best_s, best_t = [x.reveal() for x in obest_bridge]
 	if ASSERT:
 		crash((best_s == -1).bit_or(best_t == -1))

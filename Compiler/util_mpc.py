@@ -97,9 +97,9 @@ def init_stats():
 def add_stat(OFS):
 	stats[OFS] += 1
 def print_stats():
-	print_str("n_explore[%s], ", stats[OFS_EXPLORE])
-	print_str("n_push[%s], ", stats[OFS_PUSH])
-	print_str("n_search[%s], ", stats[OFS_SEARCH])
-	print_str("n_update[%s], ", stats[OFS_UPDATE])
-	print_str("n_heap[%s], ", stats[OFS_HEAP])
+	print_str("explore[%s], ", stats[OFS_EXPLORE])
+	print_str("push[%s], ", stats[OFS_PUSH])
+	print_str("search[%s], ", stats[OFS_SEARCH])
+	print_str("update[%s], ", stats[OFS_UPDATE])
+	print_str("heap[%s], ", stats[OFS_HEAP])
 	print_ln("")

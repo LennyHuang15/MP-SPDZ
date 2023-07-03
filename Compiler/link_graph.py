@@ -1,5 +1,5 @@
 from Compiler.types import *
-from Compiler.library import for_range, print_ln, public_input, if_
+from Compiler.library import for_range, print_ln, print_ln_to, public_input, if_
 from Compiler.library import crash, runtime_error_if, get_player_id
 from Compiler.program import Program
 import numpy as np
@@ -153,8 +153,8 @@ class Graph(object):
 	def pot_func_bidir(self, S, T, v, is_for):
 		if self.lmemb is None:
 			return 0
-		return self.pot_func_bidir_static(S, T, v, is_for)
-		# return self.pot_func_bidir_dyn(S, T, v, is_for)
+		# return self.pot_func_bidir_static(S, T, v, is_for)
+		return self.pot_func_bidir_dyn(S, T, v, is_for)
 	def pot_func_bidir_static(self, S, T, v, is_for):
 		pi_f = self.dist_est_static(v, T, False)
 		pi_r = self.dist_est_static(S, v, True)
@@ -164,11 +164,13 @@ class Graph(object):
 	def pot_func_bidir_dyn(self, S, T, v, is_for):
 		dists = sint.Array(N_PARTY)
 		for p in range(N_PARTY):
-			dists[p] = self._pot_func_p(S, T, v, is_for, p)
+			dists[p] = sint(self._pot_func_p(S, T, v, is_for, p))
 		return sum(dists)
 	def _pot_func_p(self, S, T, v, is_for, p):
 		pi_f = self.dist_est_dyn(v, T, p, False)
 		pi_r = self.dist_est_dyn(S, v, p, True)
 		pi_st = self.dist_ST_ps[p]
 		dp = (pi_f - pi_r) if is_for else (pi_r - pi_f)
-		return sint((dp + pi_st) / 2)
+		# print_ln_to(p, "pot[%s,%s,%s]: %s,%s->%s", S, T, v, \
+		# 	pi_f, pi_r, (dp + pi_st) // 2)
+		return (dp + pi_st) // 2

@@ -46,11 +46,14 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 	def _():
 		levels, weights, lmemb = graph.ch[0], graph.ch[-1], graph.lmemb
 		links, pws, ows, poss = chs
-		if lmemb is not None:
-			pot_dist = graph.pot_func_bidir(S, T, nid, expand_s)
-			dist.iadd(-pot_dist)
+		# if lmemb is not None:
+		# 	pot_dist = graph.pot_func_bidir(S, T, nid, expand_s)
+		# 	dist.iadd(-pot_dist)
 		@if_e(pre_nid < 0)
 		def _():
+			if lmemb is not None:
+				pot_dist = graph.pot_func_bidir_static(S, T, nid, expand_s)
+				dist.iadd(-pot_dist)
 			nid_ = regint(nid)
 			nid.update(-pre_nid - 1)
 			if ASSERT:
@@ -86,6 +89,9 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 					add_stat(OFS_PUSH)
 		@else_ # pre_nid >= 0
 		def _():
+			if lmemb is not None:
+				pot_dist = graph.pot_func_bidir(S, T, nid, expand_s)
+				dist.iadd(-pot_dist)
 			exploreds[nid], dists[nid] = pre_nid, dist
 			# sort the neighbors
 			st, en = link_index[nid], link_index[nid+1]
@@ -95,7 +101,7 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 				nid_, _, w, wid = link_edges[eid]
 				dist_p = regint(w)
 				if lmemb is not None:
-					pot_dist_ = graph.pot_func_bidir(S, T, nid_, expand_s)
+					pot_dist_ = graph.pot_func_bidir_static(S, T, nid_, expand_s)
 					dist_p.iadd(pot_dist_)
 				links[eid] = (nid_, -1, dist_p, wid)
 			insertion_sort_inplace(links, st, en, OFFSET)
@@ -111,7 +117,6 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 	
 def SPSP(graph, S, T):
 	print_ln("SPSP4: %s -> %s", S, T)
-	init_stats()
 	@if_(S == T)
 	def _():
 		ans, ans_dist = regint.Array(1), sint.Array(1)
@@ -154,7 +159,6 @@ def SPSP(graph, S, T):
 			_expand_side(graph, S, T, min_dist, obest_bridge, \
 				False, qt, link_index_rev, link_edges_rev, chs_rev, \
 				exploreds_t, dists_t, exploreds_s, dists_s)
-	print_stats()
 	best_s, best_t = [x.reveal() for x in obest_bridge]
 	if ASSERT:
 		crash((best_s == -1).bit_or(best_t == -1))
