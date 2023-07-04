@@ -496,20 +496,32 @@ class Compiler:
         # test availability before compilation
         from fabric import Connection
         import subprocess
-        print("Creating static binary for virtual machine...")
-        subprocess.run(["make", "static/%s" % vm], check=True, cwd=self.root)
+        # print("Creating static binary for virtual machine...")
+        # subprocess.run(["make", "static/%s" % vm], check=True, cwd=self.root)
 
         # transfer files
         import glob
         hostnames = []
+        ports = []
+        hostnames_local = []
         destinations = []
         for host in hosts:
             split = host.split('/', maxsplit=1)
-            hostnames.append(split[0])
+            hostname, port, hostname_local = split[0], None, None
+            if '|' in hostname:
+                hostname, hostname_local = hostname.split('|')
+            if ':' in hostname:
+                hostname, port = hostname.split(':')
+            hostnames.append(hostname)
+            ports.append(port)
+            hostnames_local.append(hostname_local)
             if len(split) > 1:
                 destinations.append(split[1])
             else:
                 destinations.append('.')
+        # print("hosts: ", hostnames)
+        # print("ports: ", ports)
+        # print("hostnames: ", hostnames)
         connect_kwargs={
             "disabled_algorithms": {
                 "pubkeys": ["rsa-sha2-256", "rsa-sha2-512"],
@@ -518,8 +530,8 @@ class Compiler:
             "password": "lenny"
         }
         connections = [
-            Connection(hostname, connect_kwargs=connect_kwargs) 
-            for hostname in hostnames
+            Connection(hostname, port=ports[i], connect_kwargs=connect_kwargs) 
+            for i, hostname in enumerate(hostnames)
         ]
         print("Setting up players...")
 
@@ -530,7 +542,7 @@ class Compiler:
                 "mkdir -p %s/{Player-Data,Programs/{Bytecode,Schedules,Public-Input}} " % \
                 dest)
             # executable
-            connection.put("%s/static/%s" % (self.root, vm), dest)
+            # connection.put("%s/static/%s" % (self.root, vm), dest)
             # program
             dest += "/"
             connection.put("Programs/Schedules/%s.sch" % self.prog.name,
@@ -569,15 +581,18 @@ class Compiler:
         threads = []
         # random port numbers to avoid conflict
         port = 10000 + random.randrange(40000)
-        if '@' in hostnames[0]:
-            party0 = hostnames[0].split('@')[1]
-        else:
+        party0 = hostnames_local[0]
+        if party0 is None:
             party0 = hostnames[0]
-        for i in range(len(connections)):
+        if '@' in party0:
+            party0 = party0.split('@')[1]
+        # print("party0", party0)
+        NP = len(connections)
+        for i in range(NP):
             run = lambda i: connections[i].run(
-                "cd %s; ./%s -p %d %s -h %s -pn %d %s" % \
-                (destinations[i], vm, i, self.prog.name, party0, port,
-                 ' '.join(args)))
+                "cd %s; ./%s -N %d -p %d %s -h %s -pn %d %s" % \
+                (destinations[i], vm, NP, i,
+                 self.prog.name, party0, port, ' '.join(args)))
             threads.append(threading.Thread(target=run, args=(i,)))
         for thread in threads:
             thread.start()
