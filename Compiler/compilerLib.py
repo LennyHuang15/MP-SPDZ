@@ -510,14 +510,24 @@ class Compiler:
                 destinations.append(split[1])
             else:
                 destinations.append('.')
-        connections = [Connection(hostname) for hostname in hostnames]
+        connect_kwargs={
+            "disabled_algorithms": {
+                "pubkeys": ["rsa-sha2-256", "rsa-sha2-512"],
+                "keys": ["rsa-sha2-256", "rsa-sha2-512"],
+            },
+            "password": "lenny"
+        }
+        connections = [
+            Connection(hostname, connect_kwargs=connect_kwargs) 
+            for hostname in hostnames
+        ]
         print("Setting up players...")
 
         def run(i):
             dest = destinations[i]
             connection = connections[i]
             connection.run(
-                "mkdir -p %s/{Player-Data,Programs/{Bytecode,Schedules}} " % \
+                "mkdir -p %s/{Player-Data,Programs/{Bytecode,Schedules,Public-Input}} " % \
                 dest)
             # executable
             connection.put("%s/static/%s" % (self.root, vm), dest)
@@ -528,15 +538,22 @@ class Compiler:
             for filename in glob.glob(
                     "Programs/Bytecode/%s-*.bc" % self.prog.name):
                 connection.put(filename, dest + "Programs/Bytecode")
+            # public inputs
+            for filename in glob.glob(
+                    "Programs/Public-Input/%s" % self.prog.name):
+                connection.put(filename, dest + "Programs/Public-Input")
             # inputs
             for filename in glob.glob("Player-Data/Input*-P%d-*" % i):
                 connection.put(filename, dest + "Player-Data")
             # key and certificates
-            for suffix in ('key', 'pem'):
-                connection.put("Player-Data/P%d.%s" % (i, suffix),
-                               dest + "Player-Data")
-            for filename in glob.glob("Player-Data/*.0"):
-                connection.put(filename, dest + "Player-Data")
+            try:
+                for suffix in ('key', 'pem'):
+                    connection.put("Player-Data/P%d.%s" % (i, suffix),
+                                dest + "Player-Data")
+                for filename in glob.glob("Player-Data/*.0"):
+                    connection.put(filename, dest + "Player-Data")
+            except:
+                pass
 
         import threading
         import random

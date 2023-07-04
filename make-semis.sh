@@ -30,20 +30,24 @@ mix=-X # daBits
 # mix=-Y # EdaBits
 
 bits=64
-./compile.py $other $mix -$opt $bits $prog
+compile_opts="$other $mix -$opt $bits"
+# ./compile.py $compile_opts $prog
 
+hosts=""
+hosts="-HHOSTS"
 opts=''
 # opts='-v'
 # opts="--bucket-size 10"
 fin=''
-fin="-IF Player-Data/Dijk/CAL/graph"
+# fin="-IF Player-Data/Dijk/CAL/graph"
+run_opts="$fin $opts"
 for ptc in ${ptcs[@]}
 do
 	obj=$ptc-party.x
 	# echo $obj
 	# make -j8 $obj
-	exec=Scripts/$ptc.sh
-	# exec="Scripts/compile-run.py -E $ptc -$opt $bits"
+	# exec="Scripts/$ptc.sh $prog"
+	exec="Scripts/compile-run.py $hosts -E $ptc $prog $compile_opts --"
 
-	$exec $fin $opts $prog #> $ptc.out
+	$exec $run_opts #> $ptc.out
 done

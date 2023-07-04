@@ -171,6 +171,4 @@ class Graph(object):
 		pi_r = self.dist_est_dyn(S, v, p, True)
 		pi_st = self.dist_ST_ps[p]
 		dp = (pi_f - pi_r) if is_for else (pi_r - pi_f)
-		# print_ln_to(p, "pot[%s,%s,%s]: %s,%s->%s", S, T, v, \
-		# 	pi_f, pi_r, (dp + pi_st) // 2)
 		return (dp + pi_st) // 2
