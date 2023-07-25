@@ -1,28 +1,71 @@
-from heap import Heap
-# from Compiler.program import Program
-# from Compiler.compilerLib import Compiler
-from util_mpc import N_PARTY
+## test whether sub-tensor is reference or value
+# a = regint(10)
+# b = a
+# a = regint.Tensor([10, 2])
+# b = a[0][1]
+# b, c = a[0]
+# b.iadd(1)
+# print_ln("%s, %s", b, a[0])
 
-heap = Heap(100)
+from util_mpc import check_val
+# from heap import Heap
+from hier_heap import Heap
+
+def print_ten(ten):
+	ten = ten.transpose()
+	if ten.value_type is sint:
+		ten = ten.reveal()
+	for i in range(ten.sizes[0]):
+		print_str("%s, ", ten[i])
+	print_ln("")
+def print_tens(heap):
+	if 1:
+		print_ten(heap.arr_h)
+		print_ten(heap.arr_l)
+def check(el, val=-1):
+	print_ln("%s", el.reveal())
+	for i in range(len(el)):
+		check_val(el[i], val[i])
+
+link_index = regint.Array(9)
+for i, idx in enumerate([0, 5, 10]):
+	link_index[i] = idx
+print_ln("link_index: %s", link_index)
+# heap = Heap(100)
+heap = Heap(10, 4, link_index)
+
+heap.begin_push(1)
 heap.push((1, 0))
 heap.push((3, 1))
 heap.push((2, 2))
 heap.push((4, 3))
+heap.end_push()
+print_tens(heap)
 top = heap.pop()
-print_ln("%s", top.reveal())
+print_tens(heap)
+check(top, (1, 0))
 top = heap.pop()
-print_ln("%s", top.reveal())
+print_tens(heap)
+check(top, (2, 2))
+heap.begin_push(0)
 heap.push((5, 4))
 heap.push((0, 5))
 heap.push((6, 6))
+heap.end_push()
+print_tens(heap)
 top = heap.pop()
-print_ln("%s", top.reveal())
+print_tens(heap)
+check(top, (0, 5))
 top = heap.pop()
-print_ln("%s", top.reveal())
+print_tens(heap)
+check(top, (3, 1))
 top = heap.pop()
-print_ln("%s", top.reveal())
+print_tens(heap)
+check(top, (4, 3))
 top = heap.pop()
-print_ln("%s", top.reveal())
+print_tens(heap)
+check(top, (5, 4))
 top = heap.pop()
-print_ln("%s", top.reveal())
+print_tens(heap)
+check(top, (6, 6))
 # top = heap.pop()

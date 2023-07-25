@@ -2,7 +2,7 @@
 
 # prog=tutorial
 prog=test_dijk
-# prog=test_personal
+prog=test_heap
 
 other=''
 # Mod prime / GF2^128
@@ -34,7 +34,7 @@ compile_opts="$other $mix -$opt $bits"
 # ./compile.py $compile_opts $prog
 
 hosts=""
-hosts="-HHOSTS"
+# hosts="-HHOSTS"
 opts=''
 # opts='-v'
 # opts="--bucket-size 10"
@@ -46,7 +46,7 @@ do
 	obj=$ptc-party.x
 	# echo $obj
 	# make -j8 $obj
-	# exec="Scripts/$ptc.sh $prog"
+	exec="Scripts/$ptc.sh $prog"
 	exec="Scripts/compile-run.py $hosts -E $ptc $prog $compile_opts --"
 
 	$exec $run_opts #> $ptc.out

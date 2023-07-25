@@ -1,25 +1,14 @@
 from Compiler.types import *
-from Compiler.library import for_range, print_ln, print_ln_to, public_input, if_
+from Compiler.library import for_range, print_ln, print_ln_to, if_
 from Compiler.library import crash, runtime_error_if, get_player_id
 from Compiler.program import Program
-import numpy as np
 from util import max, argmax
-from util_mpc import N_PARTY, print_regvec
+from util_mpc import N_PARTY, print_regvec, input_array, input_tensor
 
-def input_array(length):
-	arr = regint.Array(length)
-	@for_range(length)
-	def _(i):
-		arr[i] = public_input()
-	return arr
-def input_tensor(dim1, dim2):
-	tensor = regint.Tensor([dim1, dim2])
-	@for_range(dim1)
-	def _(i):
-		@for_range(dim2)
-		def _(j):
-			tensor[i][j] = public_input()
-	return tensor
+NO_POT = 0
+USE_LM = 1
+DYN_POT = 0
+
 def tensor2link_graph(NN, edges, rev=False):
 	degs = regint.Array(NN)
 	degs.assign_all(0)
@@ -87,6 +76,7 @@ class Graph(object):
 		print_ln("Weights loaded: %s", self.weights.shape)
 
 		self.lmemb, self.ch = None, None
+		# static LT embedding
 		if dim is not None and dim > 0:
 			self.dim = dim
 			self.lmemb = input_tensor(NN, dim)
@@ -109,6 +99,9 @@ class Graph(object):
 			poss, poss_r = regint.Array(NN), regint.Array(NN)
 			self.chs = (links, pws, ows, poss)
 			self.chs_r = (links_rev, pws_r, ows_r, poss_r)
+		# dynamic LT embedding
+		if dim is not None and dim > 0:
+			_, self.parties_emb = _load_array_parties(NN * dim)
 
 	def _build_ST(self, S, T):
 		self.S, self.T = S, T
@@ -116,12 +109,10 @@ class Graph(object):
 		# dist table of (S,v) and (v,T)
 		self.static_table = input_tensor(2, NN)
 		_, self.dynamic_table = _load_array_parties(2 * NN)
-		# dynamic LT embedding
-		if dim is not None and dim > 0:
-			_, self.parties_emb = _load_array_parties(NN * dim)
 		# pre-calculate and store the dist(S,T)
 		self.dist_ST = self.dist_est_static(S, T, True)
-		self.dist_ST_ps = [self.dist_est_dyn(S, T, p, True) for p in range(N_PARTY)]
+		if DYN_POT:
+			self.dist_ST_ps = [self.dist_est_dyn(S, T, p, True) for p in range(N_PARTY)]
 
 	def _dist_est_static_lt(self, S, T):
 		max_dist = max(self.lmemb[T][:] - self.lmemb[S][:])
@@ -140,12 +131,17 @@ class Graph(object):
 		return self.dynamic_table[p][idx]
 
 	def dist_est_static(self, S, T, from_S=None):
-		# return 0
-		# return self._dist_est_static_lt(S, T)
-		return self._dist_est_static_sp(S, T, from_S)
+		if NO_POT:
+			return 0
+		elif USE_LM:
+			return self._dist_est_static_lt(S, T)
+		else:
+			return self._dist_est_static_sp(S, T, from_S)
 	def dist_est_dyn(self, S, T, p, from_S=None):
-		# return self._dist_est_dynamic_lt(S, T, p)
-		return self._dist_est_dynamic_sp(S, T, p, from_S)
+		if USE_LM:
+			return self._dist_est_dynamic_lt(S, T, p)
+		else:
+			return self._dist_est_dynamic_sp(S, T, p, from_S)
 	# def dist_est(self, S, T, from_S=None):
 	# 	return self.dist_est_static(S, T, from_S)
 	# 	return self.dist_est_dyn(S, T, from_S)
@@ -153,8 +149,10 @@ class Graph(object):
 	def pot_func_bidir(self, S, T, v, is_for):
 		if self.lmemb is None:
 			return 0
-		# return self.pot_func_bidir_static(S, T, v, is_for)
-		return self.pot_func_bidir_dyn(S, T, v, is_for)
+		if DYN_POT:
+			return self.pot_func_bidir_dyn(S, T, v, is_for)
+		else:
+			return self.pot_func_bidir_static(S, T, v, is_for)
 	def pot_func_bidir_static(self, S, T, v, is_for):
 		pi_f = self.dist_est_static(v, T, False)
 		pi_r = self.dist_est_static(S, v, True)

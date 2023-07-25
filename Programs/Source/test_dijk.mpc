@@ -1,6 +1,7 @@
 from link_graph import Graph
 from Compiler.program import Program
 from Compiler.library import public_input
+import numpy as np
 from util_mpc import *
 
 prog = Program.prog
@@ -10,37 +11,51 @@ print_ln("test_dijk over %d parties" % N_PARTY)
 city = "CAL"
 dir_pub = prog.programs_dir + "/Public-Input/"
 dir_city = dir_pub + "graph/%s/" % (city)
-fn_cin = dir_city + "compile.in"
 
+fn_cin = dir_city + "compile.in"
 with open(fn_cin) as fp:
 	N, E = read_ints(fp)[:2]
 	N_, dim = read_ints(fp)[:2]
 	assert N_ == N
 	N_, E_new = read_ints(fp)[:2]
 	assert N_ == N
-	S, T = read_ints(fp)[:2]
-print(N, E, dim, E_new, S, T)
+	# S, T = read_ints(fp)[:2]
+	# assert S < N and T < N
+print(N, E, dim, E_new)
 graph = Graph()
 graph.load(None, N, E, dim, E_new)
 
-start_timer(2)
-graph._build_ST(S, T)
-stop_timer(2)
+fn_query = dir_city + "query.in"
+n_query, tmp, sts = read_graph(fn_query)
+assert n_query <= len(sts)
+assert (sts >= 0).all() and (sts < N).all()
+sts = sts[:n_query]
+print(sts.shape, sts[:4])
+
+# start_timer(2)
+# graph._build_ST(S, T)
+# stop_timer(2)
 
 # from dijk3 import SSSP as SP
-from spsp4 import SPSP as SP
-init_stats()
-start_timer(1)
-ans, ans_dist, size_ans = SP(graph, S, T)
-stop_timer(1)
+from spsp1 import SPSP as SP
 
-n_report = 10
-ans_dist = ans_dist.reveal()
-@for_range(size_ans.min(10))
-def _(i):
-	print_ln("[%s]: %s, %s", i, ans[i], ans_dist[i])
-@if_(n_report < size_ans)
-def _():
-	last = size_ans - 1
-	print_ln("[%s]: %s, %s", last, ans[last], ans_dist[last])
-print_stats()
+for i, st in enumerate(sts):
+	S, T = [int(x) for x in st]
+	print("query[%d]: %d -> %d"%(i, S, T))
+	graph._build_ST(S, T)
+
+	init_stats()
+	start_timer(i+1)
+	ans, ans_dist, size_ans = SP(graph, S, T)
+	stop_timer(i+1)
+
+	# n_report = 10
+	# ans_dist = ans_dist.reveal()
+	# @for_range(size_ans.min(10))
+	# def _(i):
+	# 	print_ln("[%s]: %s, %s", i, ans[i], ans_dist[i])
+	# @if_(n_report < size_ans)
+	# def _():
+	# 	last = size_ans - 1
+	# 	print_ln("[%s]: %s, %s", last, ans[last], ans_dist[last])
+	print_stats()

@@ -1,77 +1,33 @@
 from Compiler.types import *
-from Compiler.library import print_ln, if_, while_do, break_loop
-from Compiler.program import Program
-from util_mpc import OFS_HEAP, add_stat
-from util import bit_and
+from util_heap import BaseHeap, sift_up, sift_down
 
-# WIDTH = 2
 KEY = 0
-PLAIN = 1
-class Heap(object):
+class Heap(BaseHeap):
 	def __init__(self, capacity, WIDTH=2, value_type=sint):
-		self.WIDTH = WIDTH
 		self.capacity, self.size = regint(capacity), regint(0)
 		self.arr = value_type.Tensor([capacity, WIDTH])
-		# self.n_op = regint(0)
-	def __len__(self):
-		return self.size
+		self.key = lambda el: el[KEY]
 
 	def top(self):
 		return self.arr[0]
 	def push(self, entry):
-		WIDTH, arr, size = self.WIDTH, self.arr, self.size
+		arr, size = self.arr, self.size
 		crash(size >= self.capacity)
 		pos = regint(size)
 		arr[pos] = entry
 		size.iadd(1)
-		# fix up
-		@while_do(lambda: pos > 0)
-		def _():
-			par = (pos - 1) / 2
-			higher = arr[pos][KEY] < arr[par][KEY]
-			if(arr.value_type is sint and PLAIN):
-				higher = higher.reveal()
-			for i in range(WIDTH):
-				arr[pos][i], arr[par][i] = higher.cond_swap(arr[pos][i], arr[par][i])
-			add_stat(OFS_HEAP)
-			# self.n_op.iadd(1)
-			if(PLAIN):
-				@if_(higher.bit_not())
-				def _():
-					break_loop()
-			pos.update(par)
+		sift_up(arr, pos, self.key)
 
 	def pop(self):
-		WIDTH, arr, size = self.WIDTH, self.arr, self.size
+		arr, size = self.arr, self.size
 		crash(size <= 0)
 		size.iadd(-1)
-		top = arr.value_type.Array(WIDTH)
+		top = arr[0].same_shape()
 		top.assign(arr[0])
 		arr[0] = arr[size]
-		# fix down
+
 		par = regint(0)
-		lch = par * 2 + 1
-		@while_do(lambda: lch < size)
-		def _():
-			having_rch = (lch < size - 1)
-			higher_rch = arr[lch+1][KEY] < arr[lch][KEY]
-			if(arr.value_type is sint and PLAIN):
-				higher_rch = higher_rch.reveal()
-			ch = bit_and(having_rch, higher_rch).if_else(lch+1, lch)
-			higher = arr[ch][KEY] < arr[par][KEY]
-			if(arr.value_type is sint and PLAIN):
-				higher = higher.reveal()
-			for i in range(WIDTH):
-				arr[ch][i], arr[par][i] = higher.cond_swap(arr[ch][i], arr[par][i])
-			add_stat(OFS_HEAP)
-			# self.n_op.iadd(1)
-			if(PLAIN):
-				@if_(higher.bit_not())
-				def _():
-					break_loop()
-			par.update(ch)
-			lch.update(par * 2 + 1)
-		# print_ln("pop[%s]: %s", self.size, top.reveal())
+		sift_down(arr, par, size, self.key)
 		return top
 
 # def heap2_min(a, b):

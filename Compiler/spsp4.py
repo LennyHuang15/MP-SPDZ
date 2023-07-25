@@ -116,7 +116,8 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 			links, exploreds, exploreds_op, levels, pq)
 	
 def SPSP(graph, S, T):
-	print_ln("SPSP4: %s -> %s", S, T)
+	if DEBUG:
+		print_ln("SPSP4: %s -> %s", S, T)
 	@if_(S == T)
 	def _():
 		ans, ans_dist = regint.Array(1), sint.Array(1)

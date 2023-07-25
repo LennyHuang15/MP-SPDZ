@@ -12,11 +12,13 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 		expand_s, pq, link_index, link_edges, \
 		exploreds, dists, exploreds_op, dists_op):
 	dist, opre_nid, onid = pq.pop()
+	add_stat(OFS_POP)
 	pre_nid, nid = opre_nid.reveal(), onid.reveal()
 	if DEBUG:
 		print_ln("top[%s]: %s,%s,%s", exploreds[nid], pre_nid, nid, dist.reveal())
 	@if_(exploreds[nid] < 0) # to explore
 	def _():
+		add_stat(OFS_EXPLORE)
 		weights, lmemb = graph.weights, graph.lmemb
 		if lmemb is not None:
 			pot_dist = graph.pot_func_bidir(S, T, nid, expand_s)
@@ -28,6 +30,7 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 			nid_, w, wid = link_edges[eid]
 			@if_(exploreds[nid_] < 0)
 			def _():
+				add_stat(OFS_SEARCH)
 				dist_ = dist + weights[wid]
 				if DEBUG:
 					print_ln("add %s %s", nid_, dist_.reveal())
@@ -38,13 +41,16 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 					maybe_set(min_dist, to_update, bi_dist_)
 					maybe_set(obest_bridge[1 - expand_s], to_update, nid)
 					maybe_set(obest_bridge[expand_s], to_update, nid_)
+					add_stat(OFS_UPDATE)
 				if lmemb is not None:
 					pot_dist = graph.pot_func_bidir(S, T, nid_, expand_s)
 					dist_.iadd(pot_dist)
 				pq.push(sint_tuple(dist_, nid, nid_))
+				add_stat(OFS_PUSH)
 
 def SPSP(graph, S, T):
-	print_ln("SPSP1: %s -> %s", S, T)
+	if DEBUG:
+		print_ln("SPSP1: %s -> %s", S, T)
 	@if_(S == T)
 	def _():
 		ans, ans_dist = regint.Array(1), sint.Array(1)

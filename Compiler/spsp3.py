@@ -23,7 +23,6 @@ def _explore_node(graph, S, T, min_dist, obest_bridge, \
 		explored_op = exploreds_op[nid_] >= 0
 		@if_(explored_op.bit_or(up_level))
 		def _():
-			add_stat(OFS_SEARCH)
 			if LAZY_EDGE:
 				dist_ = dist + w
 				if lmemb is not None:
@@ -34,6 +33,7 @@ def _explore_node(graph, S, T, min_dist, obest_bridge, \
 				pq.push(sint_tuple(dist_, -nid-1, nid_))
 				add_stat(OFS_PUSH)
 			else:
+				add_stat(OFS_SEARCH)
 				dist_ = dist + weights[wid]
 				@if_(explored_op)
 				def _():
@@ -57,13 +57,14 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 		expand_s, pq, link_index, link_edges, \
 		exploreds, dists, exploreds_op, dists_op):
 	dist, opre_nid, onid = pq.pop()
+	add_stat(OFS_POP)
 	pre_nid, nid = opre_nid.reveal(), onid.reveal()
 	if DEBUG:
 		c = 'S' if expand_s else 'T'
 		print_ln("top%s[%s]: %s, %s, %s", c, exploreds[nid]>=0, pre_nid, nid, dist.reveal())
-	add_stat(OFS_EXPLORE)
 	@if_(exploreds[nid] < 0) # to explore
 	def _():
+		add_stat(OFS_EXPLORE)
 		levels, weights, lmemb = graph.ch[0], graph.ch[-1], graph.lmemb
 		if lmemb is not None:
 			pot_dist = graph.pot_func_bidir(S, T, nid, expand_s)
@@ -83,6 +84,7 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 					link_index[nid+1], 0, nid_)
 				if ASSERT:
 					crash(eid == -1)
+				add_stat(OFS_SEARCH)
 				_, _, w, wid = link_edges[eid]
 				w_ = weights[wid]
 				# crash((w_ < w).reveal())
@@ -112,7 +114,8 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 					nid, link_edges[eid], dist)
 	
 def SPSP(graph, S, T):
-	print_ln("SPSP3: %s -> %s", S, T)
+	if DEBUG:
+		print_ln("SPSP3: %s -> %s", S, T)
 	@if_(S == T)
 	def _():
 		ans, ans_dist = regint.Array(1), sint.Array(1)
