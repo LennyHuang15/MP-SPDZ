@@ -1,4 +1,4 @@
-from Compiler.types import sint, regint
+from Compiler.types import sint, regint, sintbit
 from Compiler.library import print_ln, print_str, public_input
 from Compiler.library import for_range, while_do, break_loop, if_, if_e, else_
 from Compiler.library import crash, runtime_error_if
@@ -45,6 +45,19 @@ def read_graph(fn):
 
 def print_regvec(vec, name, num):
 	print_ln("%s[%d]: "% (name, len(vec)) + "%s " * num, *tuple(list(vec[:num])))
+def print_arr(arr, size=None, st=0, key=None, name=''):
+	if size is None:
+		size = len(arr)
+	if key is None:
+		key = lambda x: x
+	print_str("%s[%s]: ", name, size)
+	@for_range(st, st + size)
+	def _(i):
+		val = key(arr[i])
+		if type(val) is sint:
+			val = val.reveal()
+		print_str("%s ", val)
+	print_ln("")
 
 def lin_search(arr, st, en, offset, key):
 	pos = regint(-1)
@@ -56,42 +69,41 @@ def lin_search(arr, st, en, offset, key):
 			break_loop()
 	return pos
 
-def insertion_sort_inplace(arr, st, en, OFFSET=-1):
+def insertion_sort(arr, st, en, OFFSET=None, ws=None, ws_st=None):
+	# print_ln("arr[%s]: %s", en-st, arr.transpose()[-1].get_part(0, 10).reveal())
+	if ws is None:
+		key_func = lambda i: arr[i][OFFSET]
+	else:
+		if ws_st is None:
+			ws_st = st
+		idx_ws = lambda i: i - st + ws_st
+		key_func = lambda i: ws[idx_ws(i)]
+		# print_ln("ws[%s]: %s", en-st, ws.get_part(0, 10))
 	@for_range(st + 1, en)
 	def _(i):
 		value = arr[i].same_shape()
 		value.assign(arr[i])
+		key = key_func(i)
 		j = i - 1
 		@while_do(lambda: j >= st)
 		def _():
-			@if_e(value[OFFSET] < arr[j][OFFSET])
+			cond = key < key_func(j)
+			if type(cond) is sintbit:
+				cond = cond.reveal()
+			@if_e(cond)
 			def _():
 				arr[j + 1] = arr[j]
+				if ws is not None:
+					ws[idx_ws(j+1)] = ws[idx_ws(j)]
 				j.iadd(-1)
 			@else_
 			def _():
 				break_loop()
 		arr[j + 1] = value
-def insertion_sort(arr, st, en, ws, OBLIV=False):
-	@for_range(st + 1, en)
-	def _(i):
-		value = arr[i].same_shape()
-		value.assign(arr[i])
-		key = ws[i]
-		j = i - 1
-		@while_do(lambda: j >= st)
-		def _():
-			cond_ = ws[j] > key
-			cond = cond_.reveal() if OBLIV else cond_
-			@if_e(cond)
-			def _():
-				arr[j + 1] = arr[j]
-				ws[j + 1] = ws[j]
-				j.iadd(-1)
-			@else_
-			def _():
-				break_loop()
-		arr[j+1], ws[j+1] = value, key
+		# print_ln("arr[%s]: %s", en-st, arr.transpose()[-1].get_part(0, 10).reveal())
+		if ws is not None:
+			ws[idx_ws(j+1)] = key
+			# print_ln("ws[%s]: %s", en-st, ws.get_part(0, 10))
 
 def obacktrace_path(S, T, exploreds, dists, N):
 	ans, ans_dist, length = regint.Array(N), sint.Array(N), regint(0)
@@ -115,21 +127,21 @@ def vec_merge(vec, l, vec_rev, l_rev):
 		vec[l + i] = vec_rev[i]
 	return vec
 
-N_STATS = 7
-OFS_EXPLORE, OFS_SEARCH, OFS_UPDATE, \
-	OFS_PUSH, OFS_POP, OFS_HEAP, OFS_CMP = range(N_STATS)
-stats = regint.Array(N_STATS)
+from enum import Enum
+OFS = Enum('OFS', ('Explore', 'Search', 'Update', 'Push', 'Pop', \
+                   'Heap', 'Cmp', 'CmpPush', 'CmpHeapify'), start=0)
+stats = regint.Array(len(OFS))
 
 def init_stats():
 	stats.assign_all(0)
-def add_stat(OFS):
-	stats[OFS] += 1
-def print_stats():
-	print_str("explore[%s], ", stats[OFS_EXPLORE])
-	print_str("search[%s], ", stats[OFS_SEARCH])
-	print_str("update[%s], ", stats[OFS_UPDATE])
-	print_str("push[%s], ", stats[OFS_PUSH])
-	print_str("pop[%s], ", stats[OFS_POP])
-	print_str("heap[%s], ", stats[OFS_HEAP])
-	print_str("comp[%s], ", stats[OFS_CMP])
+def add_stat(OFS, val=1):
+	stats[OFS.value] += val
+def get_stat(OFS):
+	return stats[OFS.value]
+def set_stat(OFS, val):
+	stats[OFS.value] = val
+def print_stats(ofs=None):
+	ofss = OFS if ofs is None else [ofs]
+	for ofs in ofss:
+		print_str("%s[%s], ", ofs.name, stats[ofs.value])
 	print_ln("")

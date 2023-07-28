@@ -6,9 +6,10 @@ from util import max, argmax
 from util_mpc import N_PARTY, print_regvec, input_array, input_tensor
 
 NO_POT = 0
-USE_LM = 1
-DYN_POT = 0
+USE_LM = 0
+DYN_POT = 1
 
+MAX_DEG = 512
 def tensor2link_graph(NN, edges, rev=False):
 	degs = regint.Array(NN)
 	degs.assign_all(0)
@@ -25,6 +26,8 @@ def tensor2link_graph(NN, edges, rev=False):
 	@for_range(NN)
 	def _(nid):
 		link_index[nid+1] = link_index[nid] + degs[nid]
+		runtime_error_if(degs[nid] > MAX_DEG, \
+			"max_deg %s > %s", degs[nid], MAX_DEG)
 	# print_regvec(link_index, "link_index", 10)
 	link_edges = regint.Tensor([NE, dim])
 	@for_range(NE)
@@ -90,6 +93,7 @@ class Graph(object):
 			print_ln("CH weights loaded: %s", weights_ch.shape)
 			self.ch = (levels, ch_index, ch_edges, \
 				ch_index_rev, ch_edges_rev, weights_ch)
+			self.E_new = E_new
 			# for reordering neighbors and lazy adding
 			links, links_rev = [regint.Tensor([E_new, 4]) for _ in range(2)]
 			links.assign(ch_edges)
@@ -121,7 +125,8 @@ class Graph(object):
 		lmid = argmax(self.lmemb[T][:] - self.lmemb[S][:])
 		dim, emb_p = self.dim, self.parties_emb[p]
 		dist = emb_p[T*dim + lmid] - emb_p[S*dim + lmid]
-		return max(dist, 0)
+		return dist
+		# return max(dist, 0)
 
 	def _dist_est_static_sp(self, S, T, from_S):
 		idx, dst = (0, T) if from_S else (1, S)

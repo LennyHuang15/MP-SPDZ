@@ -1,12 +1,3 @@
-## test whether sub-tensor is reference or value
-# a = regint(10)
-# b = a
-# a = regint.Tensor([10, 2])
-# b = a[0][1]
-# b, c = a[0]
-# b.iadd(1)
-# print_ln("%s, %s", b, a[0])
-
 from util_mpc import check_val
 # from heap import Heap
 from hier_heap import Heap

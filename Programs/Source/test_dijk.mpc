@@ -12,6 +12,7 @@ city = "CAL"
 dir_pub = prog.programs_dir + "/Public-Input/"
 dir_city = dir_pub + "graph/%s/" % (city)
 
+BATCH_QUERY, PRINT_RESULT = 0, 1
 fn_cin = dir_city + "compile.in"
 with open(fn_cin) as fp:
 	N, E = read_ints(fp)[:2]
@@ -19,14 +20,18 @@ with open(fn_cin) as fp:
 	assert N_ == N
 	N_, E_new = read_ints(fp)[:2]
 	assert N_ == N
-	# S, T = read_ints(fp)[:2]
-	# assert S < N and T < N
+	if not BATCH_QUERY:
+		S, T = read_ints(fp)[:2]
 print(N, E, dim, E_new)
 graph = Graph()
 graph.load(None, N, E, dim, E_new)
 
-fn_query = dir_city + "query.in"
-n_query, tmp, sts = read_graph(fn_query)
+if BATCH_QUERY:
+	fn_query = dir_city + "query.in"
+	fn_ans = dir_city + "query.out"
+	n_query, tmp, sts = read_graph(fn_query)
+else:
+	n_query, sts = 1, np.array([[S, T]])
 assert n_query <= len(sts)
 assert (sts >= 0).all() and (sts < N).all()
 sts = sts[:n_query]
@@ -37,7 +42,7 @@ print(sts.shape, sts[:4])
 # stop_timer(2)
 
 # from dijk3 import SSSP as SP
-from spsp1 import SPSP as SP
+from spsp3 import SPSP as SP
 
 for i, st in enumerate(sts):
 	S, T = [int(x) for x in st]
@@ -49,13 +54,14 @@ for i, st in enumerate(sts):
 	ans, ans_dist, size_ans = SP(graph, S, T)
 	stop_timer(i+1)
 
-	# n_report = 10
-	# ans_dist = ans_dist.reveal()
-	# @for_range(size_ans.min(10))
-	# def _(i):
-	# 	print_ln("[%s]: %s, %s", i, ans[i], ans_dist[i])
-	# @if_(n_report < size_ans)
-	# def _():
-	# 	last = size_ans - 1
-	# 	print_ln("[%s]: %s, %s", last, ans[last], ans_dist[last])
+	if PRINT_RESULT:
+		n_report = 10
+		ans_dist = ans_dist.reveal()
+		@for_range(size_ans.min(n_report))
+		def _(i):
+			print_ln("[%s]: %s, %s", i, ans[i], ans_dist[i])
+		last = size_ans - 1
+		@if_(n_report < size_ans)
+		def _():
+			print_ln("[%s]: %s, %s", last, ans[last], ans_dist[last])
 	print_stats()

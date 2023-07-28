@@ -1,6 +1,6 @@
 from Compiler.types import *
 from Compiler.library import print_ln, if_, while_do, for_range, break_loop
-from util_mpc import add_stat, OFS_HEAP, OFS_CMP, maybe_set
+from util_mpc import maybe_set, add_stat, get_stat, OFS
 
 PLAIN = 1
 
@@ -8,9 +8,10 @@ class BaseHeap(object):
 	def __len__(self):
 		return self.size
 	def begin_push(self, src):
-		pass
+		self.st_cmp = get_stat(OFS.Cmp)
 	def end_push(self):
-		pass
+		en_cmp = get_stat(OFS.Cmp)
+		add_stat(OFS.CmpPush, en_cmp - self.st_cmp)
 
 def _idx_par(ch, st=0):
 	return st + (ch - st - 1) / 2
@@ -18,17 +19,16 @@ def _idx_lch(par, st=0):
 	return st + (par - st) * 2 + 1
 
 def sift_up(arr, pos, key, st=0):
-	WIDTH = arr.sizes[-1]
 	@while_do(lambda: pos > st)
 	def _():
 		par = _idx_par(pos, st)
 		higher = key(arr[pos]) < key(arr[par])
 		if(type(higher) is sintbit and PLAIN):
 			higher = higher.reveal()
-		add_stat(OFS_CMP)
-		for i in range(WIDTH):
+		add_stat(OFS.Cmp)
+		for i in range(arr.sizes[-1]):
 			arr[pos][i], arr[par][i] = higher.cond_swap(arr[pos][i], arr[par][i])
-		add_stat(OFS_HEAP)
+		add_stat(OFS.Heap)
 		if(PLAIN):
 			@if_(higher.bit_not())
 			def _():
@@ -36,7 +36,6 @@ def sift_up(arr, pos, key, st=0):
 		pos.update(par)
 
 def sift_down(arr, par, size, key, st=0):
-	WIDTH = arr.sizes[-1]
 	en = st + size
 	@while_do(lambda: True)
 	def _():
@@ -50,15 +49,15 @@ def sift_down(arr, par, size, key, st=0):
 			higher_rch = key(arr[lch+1]) < key(arr[lch])
 			if(type(higher_rch) is sintbit and PLAIN):
 				higher_rch = higher_rch.reveal()
-			add_stat(OFS_CMP)
+			add_stat(OFS.Cmp)
 			maybe_set(ch, higher_rch, lch + 1)
 		higher = key(arr[ch]) < key(arr[par])
 		if(type(higher) is sintbit and PLAIN):
 			higher = higher.reveal()
-		add_stat(OFS_CMP)
-		for i in range(WIDTH):
+		add_stat(OFS.Cmp)
+		for i in range(arr.sizes[-1]):
 			arr[ch][i], arr[par][i] = higher.cond_swap(arr[ch][i], arr[par][i])
-		add_stat(OFS_HEAP)
+		add_stat(OFS.Heap)
 		if(PLAIN):
 			@if_(higher.bit_not())
 			def _():
@@ -66,11 +65,15 @@ def sift_down(arr, par, size, key, st=0):
 		par.update(ch)
 
 def heapify(arr, size, key, st=0):
-	par = _idx_par(size-1, st)
-	@while_do(lambda: par >= st)
-	def _():
-		sift_down(arr, par, size, key, st=st)
-		par.iadd(-1)
+	par = _idx_par(st + size - 1, st)
+	st_cmp = get_stat(OFS.Cmp)
+	@for_range(par, st - 1, -1)
+	def _(pos):
+		sift_down(arr, pos, size, key, st=st)
+		# from util_mpc import print_arr
+		# print_arr(arr, size, st, key, 'sift_down')
+	en_cmp = get_stat(OFS.Cmp)
+	add_stat(OFS.CmpHeapify, en_cmp - st_cmp)
 
 ## test heapify
 # a = [10, 20, 25, 6, 12, 15, 4, 16]

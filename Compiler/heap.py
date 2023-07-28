@@ -1,7 +1,9 @@
 from Compiler.types import *
+from Compiler.library import runtime_error_if
 from util_heap import BaseHeap, sift_up, sift_down
 
 KEY = 0
+ASSERT = 0
 class Heap(BaseHeap):
 	def __init__(self, capacity, WIDTH=2, value_type=sint):
 		self.capacity, self.size = regint(capacity), regint(0)
@@ -10,9 +12,10 @@ class Heap(BaseHeap):
 
 	def top(self):
 		return self.arr[0]
-	def push(self, entry):
+	def push(self, entry, dist_p=regint(0)):
 		arr, size = self.arr, self.size
-		crash(size >= self.capacity)
+		if ASSERT:
+			runtime_error_if(size >= self.capacity, "push")
 		pos = regint(size)
 		arr[pos] = entry
 		size.iadd(1)
@@ -20,7 +23,8 @@ class Heap(BaseHeap):
 
 	def pop(self):
 		arr, size = self.arr, self.size
-		crash(size <= 0)
+		if ASSERT:
+			runtime_error_if(size <= 0, "pop")
 		size.iadd(-1)
 		top = arr[0].same_shape()
 		top.assign(arr[0])

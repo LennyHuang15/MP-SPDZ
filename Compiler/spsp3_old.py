@@ -2,7 +2,7 @@ from Compiler.types import *
 from Compiler.library import print_ln, print_ln_if, if_, if_e, else_
 from Compiler.library import for_range, do_while, while_do, break_loop
 from util_mpc import *
-from link_graph import Graph, MAX_DEG
+from link_graph import Graph
 
 HIER_HEAP = 1
 if HIER_HEAP:
@@ -11,7 +11,8 @@ else:
 	from heap import Heap
 
 # TERM_EARLY = 1
-DEBUG = 0
+LAZY_EDGE = 0
+DEBUG = 1
 ASSERT = 1
 
 def _explore_node(graph, S, T, min_dist, obest_bridge, \
@@ -27,31 +28,35 @@ def _explore_node(graph, S, T, min_dist, obest_bridge, \
 		explored_op = exploreds_op[nid_] >= 0
 		@if_(explored_op.bit_or(up_level))
 		def _():
-			add_stat(OFS.Search)
-			dist_ = dist + weights[wid]
-			@if_(explored_op)
-			def _():
-				bi_dist_ = dist_ + dists_op[nid_]
-				to_update = (bi_dist_ < min_dist)
-				maybe_set(min_dist, to_update, bi_dist_)
-				maybe_set(obest_bridge[1 - expand_s], to_update, nid)
-				maybe_set(obest_bridge[expand_s], to_update, nid_)
-				add_stat(OFS.Update)
-			@if_(up_level)
-			def _():
+			if LAZY_EDGE:
+				dist_ = dist + w
 				if lmemb is not None:
 					pot_dist_ = graph.pot_func_bidir(S, T, nid_, expand_s)
 					dist_.iadd(pot_dist_)
 				if DEBUG:
-					print_ln("add %s, %s, %s", dist_.reveal(), nid, nid_)
-				# plain dist
-				dist_p = w
-				if lmemb is not None:
-					pot_dist_ = graph.pot_func_bidir_static(S, T, nid_, expand_s)
-					dist_p.iadd(pot_dist_)
-				# dist_p = regint(0)
-				pq.push(sint_tuple(dist_, nid, nid_), dist_p)
+					print_ln("add %s, %s, %s", dist_.reveal(), -nid-1, nid_)
+				pq.push(sint_tuple(dist_, -nid-1, nid_))
 				add_stat(OFS.Push)
+			else:
+				add_stat(OFS.Search)
+				dist_ = dist + weights[wid]
+				@if_(explored_op)
+				def _():
+					bi_dist_ = dist_ + dists_op[nid_]
+					to_update = (bi_dist_ < min_dist)
+					maybe_set(min_dist, to_update, bi_dist_)
+					maybe_set(obest_bridge[1 - expand_s], to_update, nid)
+					maybe_set(obest_bridge[expand_s], to_update, nid_)
+					add_stat(OFS.Update)
+				@if_(up_level)
+				def _():
+					if lmemb is not None:
+						pot_dist_ = graph.pot_func_bidir(S, T, nid_, expand_s)
+						dist_.iadd(pot_dist_)
+					if DEBUG:
+						print_ln("add %s, %s, %s", dist_.reveal(), nid, nid_)
+					pq.push(sint_tuple(dist_, nid, nid_))
+					add_stat(OFS.Push)
 
 def _expand_side(graph, S, T, min_dist, obest_bridge, \
 		expand_s, pq, link_index, link_edges, \
@@ -69,14 +74,51 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 		if lmemb is not None:
 			pot_dist = graph.pot_func_bidir(S, T, nid, expand_s)
 			dist.iadd(-pot_dist)
-		pq.begin_push(nid)
-		exploreds[nid], dists[nid] = pre_nid, dist
-		@for_range(link_index[nid], link_index[nid+1])
-		def _(eid):
-			_explore_node(graph, S, T, min_dist, obest_bridge, \
-				expand_s, pq, exploreds, dists, exploreds_op, dists_op, \
-				nid, link_edges[eid], dist)
-		pq.end_push()
+		@if_e(pre_nid < 0)
+		def _():
+			is_lazy = MemValue(LAZY_EDGE)
+			if ASSERT:
+				crash(is_lazy.bit_not())
+			nid_ = regint(nid)
+			nid.update(-pre_nid - 1)
+			up_level = levels[nid] < levels[nid_]
+			explored_op = exploreds_op[nid_] >= 0
+			@if_(explored_op.bit_or(up_level))
+			def _():
+				eid = lin_search(link_edges, link_index[nid], \
+					link_index[nid+1], 0, nid_)
+				if ASSERT:
+					crash(eid == -1)
+				add_stat(OFS.Search)
+				_, _, w, wid = link_edges[eid]
+				w_ = weights[wid]
+				# crash((w_ < w).reveal())
+				dist_ = dist + w_ - w
+				@if_(explored_op)
+				def _():
+					bi_dist_ = dist_ + dists_op[nid_]
+					to_update = (bi_dist_ < min_dist)
+					maybe_set(min_dist, to_update, bi_dist_)
+					maybe_set(obest_bridge[1 - expand_s], to_update, nid)
+					maybe_set(obest_bridge[expand_s], to_update, nid_)
+					add_stat(OFS.Update)
+				@if_(up_level)
+				def _():
+					if lmemb is not None:
+						pot_dist = graph.pot_func_bidir(S, T, nid_, expand_s)
+						dist_.iadd(pot_dist)
+					pq.push(sint_tuple(dist_, nid, nid_))
+					add_stat(OFS.Push)
+		@else_
+		def _():
+			pq.begin_push(nid)
+			exploreds[nid], dists[nid] = pre_nid, dist
+			@for_range(link_index[nid], link_index[nid+1])
+			def _(eid):
+				_explore_node(graph, S, T, min_dist, obest_bridge, \
+					expand_s, pq, exploreds, dists, exploreds_op, dists_op, \
+					nid, link_edges[eid], dist)
+			pq.end_push()
 	
 def SPSP(graph, S, T):
 	if DEBUG:
@@ -86,7 +128,7 @@ def SPSP(graph, S, T):
 		ans, ans_dist = regint.Array(1), sint.Array(1)
 		ans[0], ans_dist[0] = S, 0
 		return ans, ans_dist, regint(1)
-	N, E, E_new = graph.N, graph.E, graph.E_new
+	N, E = graph.N, graph.E
 	levels, link_index_for, link_edges_for, \
 		link_index_rev, link_edges_rev, weights = graph.ch
 
@@ -95,17 +137,12 @@ def SPSP(graph, S, T):
 	for vec in [exploreds_s, dists_s, exploreds_t, dists_t]:
 		vec.assign_all(-1)
 	if HIER_HEAP:
-		qs = Heap(E_new, N, link_index_for, 3)
-		qt = Heap(E_new, N, link_index_rev, 3)
+		qs, qt = Heap(E, N, link_index_for, 3), Heap(E, N, link_index_rev, 3)
 	else:
-		qs, qt = Heap(E_new, 3), Heap(E_new, 3)
+		qs, qt = Heap(E, 3), Heap(E, 3)
 	p_st = graph.pot_func_bidir(S, T, S, True)
-	qs.begin_push(0)
 	qs.push(sint_tuple(p_st, N, S))
-	qs.end_push()
-	qt.begin_push(0)
 	qt.push(sint_tuple(p_st, N, T))
-	qt.end_push()
 
 	min_dist, obest_bridge = sint(DATA_BOUND), sint_tuple(-1, -1)
 	expand_s = MemValue(False)

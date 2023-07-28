@@ -2,7 +2,8 @@
 
 # prog=tutorial
 prog=test_dijk
-prog=test_heap
+# prog=test_mpc
+# prog=test_heap
 
 other=''
 # Mod prime / GF2^128
