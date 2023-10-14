@@ -12,7 +12,7 @@ city = "CAL"
 dir_pub = prog.programs_dir + "/Public-Input/"
 dir_city = dir_pub + "graph/%s/" % (city)
 
-BATCH_QUERY, PRINT_RESULT = 0, 1
+BATCH_QUERY, PRINT_RESULT = 1, 0
 fn_cin = dir_city + "compile.in"
 with open(fn_cin) as fp:
 	N, E = read_ints(fp)[:2]
@@ -24,7 +24,7 @@ with open(fn_cin) as fp:
 		S, T = read_ints(fp)[:2]
 print(N, E, dim, E_new)
 graph = Graph()
-graph.load(None, N, E, dim, E_new)
+graph.load(N, E, dim, E_new)
 
 if BATCH_QUERY:
 	fn_query = dir_city + "query.in"

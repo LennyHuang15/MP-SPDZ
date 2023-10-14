@@ -1,4 +1,4 @@
-from Compiler.types import sint, regint, sintbit
+from Compiler.types import sint, regint, sintbit, Array
 from Compiler.library import print_ln, print_str, public_input
 from Compiler.library import for_range, while_do, break_loop, if_, if_e, else_
 from Compiler.library import crash, runtime_error_if
@@ -11,8 +11,30 @@ def sint_tuple(*args):
 def plain_tuple(*args):
 	return tuple(x for x in args)
 
+def copy(a):
+	if type(a) is Array:
+		b = a.same_shape()
+		b.assign(a)
+	else:
+		b = type(a)(a)
+		b.update(a)
+	return b
+def alloc_arr(capacity, value_type=regint, WIDTH=None):
+	if WIDTH is None:
+		arr = value_type.Array(capacity)
+	else:
+		arr = value_type.Tensor([capacity, WIDTH])
+	return arr
+
 def maybe_set(var, cond, val):
 	var.update(cond.if_else(val, var))
+def cond_swap_arr(to_swap, arr, idx1, idx2):
+	if type(arr[idx1]) is Array:
+		for i in range(arr.sizes[-1]):
+			arr[idx1][i], arr[idx2][i] = to_swap.cond_swap(arr[idx1][i], arr[idx2][i])
+	else:
+		assert type(arr[idx1]) is regint or type(arr[idx1]) is sint
+		arr[idx1], arr[idx2] = to_swap.cond_swap(arr[idx1], arr[idx2])
 
 def check_val(var, val):
 	if type(var) is sint:
@@ -127,9 +149,9 @@ def vec_merge(vec, l, vec_rev, l_rev):
 		vec[l + i] = vec_rev[i]
 	return vec
 
-from enum import Enum
-OFS = Enum('OFS', ('Explore', 'Search', 'Update', 'Push', 'Pop', \
-                   'Heap', 'Cmp', 'CmpPush', 'CmpHeapify'), start=0)
+from enum import IntEnum
+OFS = IntEnum('OFS', ('Explore', 'Search', 'Update', 'Push', 'Pop', \
+					'Heap', 'Cmp', 'CmpPush', 'CmpHeapify'), start=0)
 stats = regint.Array(len(OFS))
 
 def init_stats():

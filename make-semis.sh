@@ -2,8 +2,9 @@
 
 # prog=tutorial
 prog=test_dijk
+prog=build_ch
 # prog=test_mpc
-# prog=test_heap
+# prog=test_HTheap
 
 other=''
 # Mod prime / GF2^128

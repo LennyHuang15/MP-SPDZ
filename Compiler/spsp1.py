@@ -25,6 +25,7 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 			dist.iadd(-pot_dist)
 		exploreds[nid], dists[nid] = pre_nid, dist
 		# print_ln("exploring %s -> %s", link_index[nid], link_index[nid+1])
+		pq.begin_push(nid)
 		@for_range(link_index[nid], link_index[nid+1])
 		def _(eid):
 			nid_, w, wid = link_edges[eid]
@@ -47,6 +48,7 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 					dist_.iadd(pot_dist)
 				pq.push(sint_tuple(dist_, nid, nid_))
 				add_stat(OFS.Push)
+		pq.end_push()
 
 def SPSP(graph, S, T):
 	if DEBUG:
@@ -56,7 +58,7 @@ def SPSP(graph, S, T):
 		ans, ans_dist = regint.Array(1), sint.Array(1)
 		ans[0], ans_dist[0] = S, 0
 		return ans, ans_dist, regint(1)
-	N, E = graph.N, graph.E
+	N, E, E_new = graph.N, graph.E, graph.E_new
 	link_index_for, link_edges_for = graph.link_index, graph.link_edges
 	link_index_rev, link_edges_rev = graph.link_index_rev, graph.link_edges_rev
 
@@ -65,9 +67,13 @@ def SPSP(graph, S, T):
 	for vec in [exploreds_s, dists_s, exploreds_t, dists_t]:
 		vec.assign_all(-1)
 	p_st = graph.pot_func_bidir(S, T, S, True)
-	qs, qt = Heap(N, 3), Heap(N, 3)
+	qs, qt = Heap(E_new, 3), Heap(E_new, 3)
+	qs.begin_push(0)
 	qs.push(sint_tuple(p_st, N, S))
+	qs.end_push()
+	qt.begin_push(0)
 	qt.push(sint_tuple(p_st, N, T))
+	qt.end_push()
 
 	min_dist, obest_bridge = sint(DATA_BOUND), sint_tuple(-1, -1)
 	@while_do(lambda: True)

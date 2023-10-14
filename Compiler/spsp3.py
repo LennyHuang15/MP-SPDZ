@@ -6,7 +6,8 @@ from link_graph import Graph, MAX_DEG
 
 HIER_HEAP = 1
 if HIER_HEAP:
-	from hier_heap import Heap
+	# from hier_heap import Heap
+	from HT_heap import Heap
 else:
 	from heap import Heap
 
@@ -94,12 +95,11 @@ def SPSP(graph, S, T):
 	exploreds_t, dists_t = regint.Array(N), sint.Array(N)
 	for vec in [exploreds_s, dists_s, exploreds_t, dists_t]:
 		vec.assign_all(-1)
+	p_st = graph.pot_func_bidir(S, T, S, True)
 	if HIER_HEAP:
-		qs = Heap(E_new, N, link_index_for, 3)
-		qt = Heap(E_new, N, link_index_rev, 3)
+		qs, qt = Heap(E_new, N, 3), Heap(E_new, N, 3)
 	else:
 		qs, qt = Heap(E_new, 3), Heap(E_new, 3)
-	p_st = graph.pot_func_bidir(S, T, S, True)
 	qs.begin_push(0)
 	qs.push(sint_tuple(p_st, N, S))
 	qs.end_push()

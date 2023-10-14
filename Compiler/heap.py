@@ -1,38 +1,49 @@
 from Compiler.types import *
 from Compiler.library import runtime_error_if
+from util_mpc import copy, alloc_arr, print_arr
 from util_heap import BaseHeap, sift_up, sift_down
 
-KEY = 0
 ASSERT = 0
 class Heap(BaseHeap):
-	def __init__(self, capacity, WIDTH=2, value_type=sint):
+	def __init__(self, capacity, WIDTH=None, value_type=sint, key=None):
 		self.capacity, self.size = regint(capacity), regint(0)
-		self.arr = value_type.Tensor([capacity, WIDTH])
-		self.key = lambda el: el[KEY]
+		self.arr = alloc_arr(capacity, value_type=value_type, WIDTH=WIDTH)
+		if key is None:
+			key = lambda el: el[0]
+		self.key = key
 
 	def top(self):
-		return self.arr[0]
+		return copy(self.arr[0])
 	def push(self, entry, dist_p=regint(0)):
 		arr, size = self.arr, self.size
 		if ASSERT:
 			runtime_error_if(size >= self.capacity, "push")
-		pos = regint(size)
-		arr[pos] = entry
+		arr[size] = entry
 		size.iadd(1)
-		sift_up(arr, pos, self.key)
+		self._sift_up()
+		# sift_up(arr, pos, self.key)
+
+	def replace_top(self, entry):
+		self.arr[0] = entry
+		self._sift_down()
+	def _sift_down(self):
+		par = regint(0)
+		sift_down(self.arr, par, self.size, self.key)
+	def _sift_up(self):
+		sift_up(self.arr, self.size - 1, self.key)
 
 	def pop(self):
 		arr, size = self.arr, self.size
 		if ASSERT:
 			runtime_error_if(size <= 0, "pop")
 		size.iadd(-1)
-		top = arr[0].same_shape()
-		top.assign(arr[0])
+		top = copy(arr[0])
 		arr[0] = arr[size]
-
-		par = regint(0)
-		sift_down(arr, par, size, self.key)
+		self._sift_down()
 		return top
+
+	def print(self, name=None):
+		print_arr(self.arr, size=self.size, name=name)
 
 # def heap2_min(a, b):
 # 	empty_a, empty_b = (a.size <= 0), (b.size <= 0)
