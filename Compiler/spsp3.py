@@ -2,9 +2,9 @@ from Compiler.types import *
 from Compiler.library import print_ln, print_ln_if, if_, if_e, else_
 from Compiler.library import for_range, do_while, while_do, break_loop
 from util_mpc import *
-from link_graph import Graph, MAX_DEG
+from link_graph import Graph
 
-HIER_HEAP = 1
+HIER_HEAP = 0
 if HIER_HEAP:
 	# from hier_heap import Heap
 	from HT_heap import Heap

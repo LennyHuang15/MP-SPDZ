@@ -3,7 +3,7 @@ from Compiler.library import runtime_error_if
 from util_mpc import copy, alloc_arr, print_arr
 from util_heap import BaseHeap, sift_up, sift_down
 
-ASSERT = 0
+ASSERT = 1
 class Heap(BaseHeap):
 	def __init__(self, capacity, WIDTH=None, value_type=sint, key=None):
 		self.capacity, self.size = regint(capacity), regint(0)

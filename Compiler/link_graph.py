@@ -3,13 +3,13 @@ from Compiler.library import for_range, while_do, if_, if_e, else_, break_loop
 from Compiler.library import print_ln, print_ln_to, crash, runtime_error_if, get_player_id
 from Compiler.program import Program
 from util import max, argmax
-from util_mpc import N_PARTY, print_regvec, input_array, input_tensor
+from util_mpc import N_PARTY, print_regvec, input_array, input_tensor, print_tensor
 
-NO_POT = 0
+NO_POT = 1
 USE_LM = 0
-DYN_POT = 1
+DYN_POT = 0
 
-MAX_DEG = 512
+MAX_DEG = 512# to be used in HT-heap
 def tensor2link_graph(NN, edges, rev=False):
 	degs = regint.Array(NN)
 	degs.assign_all(0)
@@ -117,49 +117,49 @@ class Graph(object):
 		if DYN_POT:
 			self.dist_ST_ps = [self.dist_est_dyn(S, T, p, True) for p in range(N_PARTY)]
 	
-	def build_ch(self):
+	def build_ch(self, revealing=True):
 		NN, NE = self.N, self.E
-		link_index, link_edges, link_index_rev, link_edges_rev = \
-			self.link_index, self.link_edges, self.link_index_rev, self.link_edges_rev
+		link_index, link_edges = self.link_index, self.link_edges
 		levels, node_levels = input_array(NN), input_array(NN)
 		print_ln("Building CH: %s, %s" % (NN, levels.shape))
-		weights = self.weights.reveal()
+		weights = self.weights
+		if revealing:
+			weights = weights.reveal()
 
 		MAX_CH = NN * 16
-		# linked_list: (dst/src, mid, w, pt_next)
-		ch_edges, ch_edges_rev = [regint.Tensor([MAX_CH, 4]) for _ in range(2)]
-		sz, sz_rev = [regint(0) for _ in range(2)]
+		# (src, dst, min, w, pt_next, pt_next_rev)
+		ch_edges, sz = regint.Tensor([MAX_CH, 6]), regint(0)
+		ws = weights.value_type.Array(MAX_CH)
 		pts, pts_rev = [regint.Tensor([NN, 2]) for _ in range(2)]
 		pts.assign_all(-1)
 		pts_rev.assign_all(-1)
-		def _add_edge(edges, sz, pts, nid, nid_, mid, w):
+		def _add_pt(pts, nid, nid_, is_rev=0):
 			@if_(pts[nid][0] < 0)
 			def _():
 				pts[nid][0] = sz
-			runtime_error_if(sz >= MAX_CH, "sz %s >= %s", sz, MAX_CH)
-			edges[sz] = (nid_, mid, w, -1)
 			pre_tail = pts[nid][1]
 			@if_(pre_tail >= 0)
 			def _():
-				edges[pre_tail][-1] = sz
+				ch_edges[pre_tail][-2 + is_rev] = sz
 			pts[nid][1] = sz
+		def add_edge(src, dst, mid, w):
+			runtime_error_if(sz >= MAX_CH, "sz %s >= %s", sz, MAX_CH)
+			ch_edges[sz] = (src, dst, mid, w, -1, -1)
+			ws[sz] = w
+			_add_pt(pts, src, dst, is_rev=0)
+			_add_pt(pts_rev, dst, src, is_rev=1)
 			sz.iadd(1)
-		def add_edge(nid, nid_, mid, w):
-			_add_edge(ch_edges, sz, pts, nid, nid_, mid, w)
-		def add_edge_rev(nid, nid_, mid, w):
-			_add_edge(ch_edges_rev, sz_rev, pts_rev, nid, nid_, mid, w)
-		def lin_search(edges, st, en, key, offset=0):
+		def lin_search(st, en, key, is_rev=0):
 			# print_ln("search %s %s %s", st, en, key)
-			E = edges.shape[0]
 			runtime_error_if(st == -1, "st %s", st)
-			runtime_error_if((en < 0).bit_or(en >= E), "en %s", en)
+			# runtime_error_if((en < 0).bit_or(en >= sz), "en %s", en)
 			pt = regint(st)
 			@while_do(lambda: True)
 			def _():
 				runtime_error_if(pt < 0, "pt = %s", pt)
-				runtime_error_if(pt >= E, "pt = %s >= %s", pt, E)
-				pt_next = edges[pt][-1]
-				@if_(edges[pt][offset] == key)
+				runtime_error_if(pt >= sz, "pt = %s >= %s", pt, sz)
+				pt_next = ch_edges[pt][-2 + is_rev]
+				@if_(ch_edges[pt][1 - is_rev] == key)
 				def _():
 					break_loop()
 				@if_(pt == en)
@@ -174,38 +174,40 @@ class Graph(object):
 		def _(nid):
 			@for_range(link_index[nid], link_index[nid+1])
 			def _(eid):
-				dst, w, eid_ = link_edges[eid][:]
+				dst, w_p, eid_ = link_edges[eid][:]
+				w = weights[eid_]
+				if revealing:
+					w = w.reveal()
 				add_edge(nid, dst, -1, w)
-			@for_range(link_index_rev[nid], link_index_rev[nid+1])
-			def _(eid):
-				src, w, eid_ = link_edges_rev[eid][:]
-				add_edge_rev(nid, src, -1, w)
 		runtime_error_if(sz != NE, "sz %s != %s", sz, NE)
-		runtime_error_if(sz_rev != NE, "sz_rev %s != %s", sz_rev, NE)
 		# print_ln("pts: %s %s %s", pts[0], pts[1], pts[2])
 		# for i in range(10):
-		# 	print_ln("%s", ch_edges_rev[i])
-		# pos = lin_search(ch_edges, 2, 2, 2)
-		# print_ln("pos: %s", pos)
+		# 	print_ln("%s", ch_edges[i])
+		# # pos = lin_search(ch_edges, 2, 2, 2)
+		# # print_ln("pos: %s", pos)
 		# return
 
 		# contract and add shortcuts
 		n_visit, n_sc = [regint(0) for _ in range(2)]
 		NSTEP = NN
 		STEP, STEP_vs = NN // NSTEP, 20000
-		n_visit_old = regint(-STEP_vs)
+		milestone = regint(0)
 		@for_range(NN)
 		def _(lev):
-			nid = node_levels[lev]
+			# print process
 			# @if_(lev % STEP == 0)
-			@if_(n_visit - n_visit_old >= STEP_vs)
+			@if_(n_visit >= milestone)
 			def _():
 				print_ln("%s/%s: %s,%s", lev, NN, n_visit, n_sc)
-				n_visit_old.update(n_visit)
+				milestone.iadd(STEP_vs)
+			# begin
+			nid = node_levels[lev]
 			ieid = pts_rev[nid][0]
 			@while_do(lambda: ieid >= 0)
 			def _():
-				src, imid, iw, inext = ch_edges_rev[ieid]
+				src, dst_, imid, iw_p, _, inext = ch_edges[ieid]
+				runtime_error_if(dst_ != nid, "dst_ %s != %s", dst_, nid)
+				iw = ws[ieid]
 				@if_(levels[src] > lev)
 				def _():
 					# use the deg before adding shortcuts is enough
@@ -213,7 +215,9 @@ class Graph(object):
 					oeid = pts[nid][0]
 					@while_do(lambda: oeid >= 0)
 					def _():
-						dst, omid, ow, onext = ch_edges[oeid]
+						src_, dst, omid, ow_p, onext, _ = ch_edges[oeid]
+						runtime_error_if(src_ != nid, "src_ %s != %s", src_, nid)
+						ow = ws[oeid]
 						@if_((src != dst).bit_and(levels[dst] > lev))
 						def _():
 							# print_ln("visit %s->%s", src, dst)
@@ -221,29 +225,31 @@ class Graph(object):
 							d_st, d_en = pts_rev[dst]
 							# add/update shortcut (s, d) = iw + ow
 							w_sc = iw + ow
-							pos = lin_search(ch_edges, s_st, s_en, dst)
-							pos_rev = lin_search(ch_edges_rev, d_st, d_en, src)
+							pos = lin_search(s_st, s_en, dst, 0)
+							pos_rev = lin_search(d_st, d_en, src, 1)
 							# print_ln("pos: %s, %s", pos, pos_rev)
 							runtime_error_if((pos == -1) != (pos_rev == -1))
 							@if_e(pos == -1)
 							def _():
 								add_edge(src, dst, nid, w_sc)
-								add_edge_rev(dst, src, nid, w_sc)
 								n_sc.iadd(1)
 							@else_
 							def _():
-								to_update = w_sc < ch_edges[pos][2]
+								to_update = w_sc < ws[pos]# ch_edges[pos][2]
 								if type(to_update) is sintbit:
 									to_update = to_update.reveal()
 								@if_(to_update)
 								def _():
-									ch_edges[pos][1:3] = ch_edges_rev[pos_rev][1:3] = (nid, w_sc)
+									ch_edges[pos][2:4] = (nid, w_sc)
+									ws[pos] = w_sc
 						oeid.update(onext)
 				ieid.update(inext)
-		print_ln("Contraction finished, %s visited\n", n_visit)
-		print_ln("%s shortcuts added, %s->%s\n", n_sc, NE, sz)
-		runtime_error_if(sz != sz_rev, "sz %s != %s", sz, sz_rev)
+		print_ln("Contraction finished, %s visited", n_visit)
+		print_ln("%s shortcuts added, %s->%s", n_sc, NE, sz)
 		runtime_error_if(sz != NE + n_sc)
+		# output
+		print_ln("### CH tensor")
+		print_tensor(ch_edges, sz, 4)# s, t, mid
 
 	def _dist_est_static_lt(self, S, T):
 		max_dist = max(self.lmemb[T][:] - self.lmemb[S][:])

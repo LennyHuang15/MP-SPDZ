@@ -18,4 +18,4 @@ print(N, E)
 graph = Graph()
 graph.load(N, E)
 
-graph.build_ch()
+graph.build_ch(revealing=1)

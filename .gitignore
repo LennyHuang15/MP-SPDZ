@@ -8,6 +8,8 @@ Language-Definition/main.pdf
 keys/*
 data
 data/*
+data_runtime
+data_runtime/*
 
 # Personal CONFIG file #
 ##############################

@@ -81,6 +81,20 @@ def print_arr(arr, size=None, st=0, key=None, name=''):
 		print_str("%s ", val)
 	print_ln("")
 
+def print_tensor(tensor, size=None, dim=None):
+	n, d = tensor.shape
+	if size is not None:
+		n = size
+	if dim is not None:
+		d = dim
+	print_ln("%s %s", n, dim)
+	@for_range(n)
+	def _(i):
+		@for_range(d)
+		def _(j):
+			print_str("%s ", tensor[i][j])
+		print_ln("")
+	
 def lin_search(arr, st, en, offset, key):
 	pos = regint(-1)
 	@for_range(st, en)

@@ -2,7 +2,7 @@
 
 # prog=tutorial
 prog=test_dijk
-prog=build_ch
+# prog=build_ch
 # prog=test_mpc
 # prog=test_HTheap
 
