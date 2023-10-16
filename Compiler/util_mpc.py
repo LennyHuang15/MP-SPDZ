@@ -3,7 +3,7 @@ from Compiler.library import print_ln, print_str, public_input
 from Compiler.library import for_range, while_do, break_loop, if_, if_e, else_
 from Compiler.library import crash, runtime_error_if
 
-N_PARTY = 2
+N_PARTY = 3
 DATA_BOUND = int(1e7)
 
 def sint_tuple(*args):

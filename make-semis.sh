@@ -6,6 +6,8 @@ prog=test_dijk
 # prog=test_mpc
 # prog=test_HTheap
 
+NP=2
+NP=3
 other=''
 # Mod prime / GF2^128
 opt=F
@@ -36,13 +38,13 @@ compile_opts="$other $mix -$opt $bits"
 # ./compile.py $compile_opts $prog
 
 hosts=""
-# hosts="-HHOSTS"
+hosts="-HHOSTS"
 opts=''
 # opts='-v'
 # opts="--bucket-size 10"
 fin=''
 # fin="-IF Player-Data/Dijk/CAL/graph"
-run_opts="$fin $opts"
+run_opts="$fin $opts -N $NP"
 for ptc in ${ptcs[@]}
 do
 	obj=$ptc-party.x

@@ -7,14 +7,15 @@ from util_mpc import *
 prog = Program.prog
 # prog.use_edabit(True)
 city = "CAL"
-print_ln("Build CH on %s over %d parties" % (city, N_PARTY))
+print_ln("Build CH on %s" % (city))
 dir_data = "/Users/lenny/Desktop/MP-SPDZ/data/"
 dir_city = dir_data + "%s/"%city
 
 fn_g = dir_city + "%s.gr"%city
 with open(fn_g) as fp:
+	N_PARTY = read_ints(fp)[0]
 	N, E = read_ints(fp)[:2]
-print(N, E)
+print(N_PARTY, N, E)
 graph = Graph()
 graph.load(N, E)
 

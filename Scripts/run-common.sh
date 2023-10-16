@@ -37,6 +37,7 @@ run_player() {
     params="$prog $* -pn $port -h localhost"
     if $SPDZROOT/$bin 2>&1 | grep -q '^-N,'; then
        params="$params -N $players"
+    #    echo params $players
     fi
     if test "$prog"; then
 	log_prefix=$prog-
@@ -74,7 +75,10 @@ run_player() {
     done
 }
 
-getopts N: opt $(getopt N: $* 2>/dev/null)
+# getopts N: opt $(getopt N: $* 2>/dev/null)
+tmp=("$@")
+ttmp=("${tmp[@]:1}")
+getopts N: opt $(getopt N: "${ttmp[@]}" 2>/dev/null)
 if test "$opt" = N; then
     PLAYERS=$OPTARG
 fi
