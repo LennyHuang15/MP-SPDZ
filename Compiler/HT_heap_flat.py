@@ -34,7 +34,7 @@ class Heap(BaseHeap):
 		arr, dists_p, hfm_queue = self.arr, self.dists_p, self.hfm_queue
 		# print_ln("push %s, %s, %s, %s", src, size_l, pos_st, pos_en)
 		if ASSERT:
-			runtime_error_if(size >= self.capacity, "push")
+			runtime_error_if(size >= self.capacity, "HT push")
 		arr[size], dists_p[size] = entry, dist_p
 		hfm_queue[size - old_size] = (dist_p, -1, -1, FLAG.INVALID)
 		size.iadd(1)

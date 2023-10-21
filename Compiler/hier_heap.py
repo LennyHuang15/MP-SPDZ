@@ -32,7 +32,7 @@ class Heap(BaseHeap):
 		arr_l, pos_st, size_l = self.arr_l, self.cur_pos_st, self.cur_size_l
 		# print_ln("push %s, %s", pos_st, size_l)
 		if ASSERT:
-			runtime_error_if(pos_st + size_l >= self.cap_l, "push")
+			runtime_error_if(pos_st + size_l >= self.cap_l, "hier push")
 		arr_l[pos_st + size_l], self.dists_p[size_l] = entry, dist_p
 		size_l.iadd(1)
 		self.size.iadd(1)

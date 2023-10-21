@@ -1,18 +1,26 @@
 #!/bin/bash
 
-# prog=tutorial
 prog=test_dijk
 # prog=build_ch
-# prog=test_mpc
-# prog=test_HTheap
+prog=test_hashmap
 
-NP=2
-NP=3
+hosts=""
+# hosts="-HHOSTS"
+
+# city="BJ"
+fn_cin="./Programs/Public-Input/graph/compile.in"
+exec 6< $fn_cin
+read NP <&6
+read city <&6
+# NP=$(head -n 1 $fn_cin)
+# NP=4
+
 other=''
 # Mod prime / GF2^128
 opt=F
 # ptcs=(semi hemi temi soho) # Dishonest-Majority
 ptcs=(hemi)
+# ptcs=(hemi temi)
 ## ptcs=(atlas shamir)
 
 # Mod 2^k
@@ -37,8 +45,6 @@ bits=64
 compile_opts="$other $mix -$opt $bits"
 # ./compile.py $compile_opts $prog
 
-hosts=""
-hosts="-HHOSTS"
 opts=''
 # opts='-v'
 # opts="--bucket-size 10"

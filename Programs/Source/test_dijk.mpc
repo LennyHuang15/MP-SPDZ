@@ -7,15 +7,16 @@ from util_mpc import *
 prog = Program.prog
 # prog.use_edabit(True)
 
-city = "CAL"
-dir_pub = prog.programs_dir + "/Public-Input/"
-dir_city = dir_pub + "graph/%s/" % (city)
+# city = "CAL"
+# dir_pub = prog.programs_dir + "/Public-Input/"
+# dir_city = dir_pub + "graph/%s/" % (city)
 print_ln("test_dijk on %s" % city)
 
 BATCH_QUERY, PRINT_RESULT = 0, 1
-fn_cin = dir_city + "compile.in"
+# fn_cin = dir_city + "compile.in"
 with open(fn_cin) as fp:
 	N_PARTY = read_ints(fp)[0]
+	city = fp.readline()[:-1]
 	N, E = read_ints(fp)[:2]
 	N_, dim = read_ints(fp)[:2]
 	assert N_ == N

@@ -1,10 +1,22 @@
 from Compiler.types import sint, regint, sintbit, Array
-from Compiler.library import print_ln, print_str, public_input
-from Compiler.library import for_range, while_do, break_loop, if_, if_e, else_
-from Compiler.library import crash, runtime_error_if
+from Compiler.library import print_ln, print_str, public_input, \
+	crash, runtime_error_if, for_range, while_do, break_loop, if_, if_e, else_
+from Compiler.program import Program
+prog = Program.prog
+def read_ints(fp):
+    return [int(x) for x in fp.readline()[:-1].split(" ")]
 
-N_PARTY = 3
+ASSERT = 1
 DATA_BOUND = int(1e7)
+
+dir_pub = prog.programs_dir + "/Public-Input/graph/"
+# dir_city = dir_pub + "%s/" % (city)
+fn_cin = dir_pub + "compile.in"
+with open(fn_cin) as fp:
+	N_PARTY = read_ints(fp)[0]
+	city = fp.readline()[:-1]
+	N, E = read_ints(fp)[:2]
+print("N_PARTY", N_PARTY, "city", city, N, E)
 
 def sint_tuple(*args):
 	return tuple(sint(x) for x in args)
@@ -41,8 +53,6 @@ def check_val(var, val):
 		var = var.reveal()
 	runtime_error_if(var != val, "%s != %s", var, val)
 
-def read_ints(fp):
-    return [int(x) for x in fp.readline()[:-1].split(" ")]
 def input_array(length):
 	arr = regint.Array(length)
 	@for_range(length)

@@ -1,22 +1,16 @@
 from link_graph import Graph
 from Compiler.program import Program
 from Compiler.library import public_input
-import numpy as np
 from util_mpc import *
-
-prog = Program.prog
 # prog.use_edabit(True)
-city = "CAL"
-print_ln("Build CH on %s" % (city))
-dir_data = "/Users/lenny/Desktop/MP-SPDZ/data/"
-dir_city = dir_data + "%s/"%city
 
-fn_g = dir_city + "%s.gr"%city
-with open(fn_g) as fp:
-	N_PARTY = read_ints(fp)[0]
-	N, E = read_ints(fp)[:2]
-print(N_PARTY, N, E)
+print_ln("Build CH on %s" % (city))
+# with open(fn_cin) as fp:
+# 	N_PARTY = read_ints(fp)[0]
+# 	city = fp.readline()[:-1]
+# 	N, E = read_ints(fp)[:2]
+print(N_PARTY, city, N, E)
 graph = Graph()
 graph.load(N, E)
 
-graph.build_ch(revealing=1)
+graph.build_ch(merging=1, revealing=1)

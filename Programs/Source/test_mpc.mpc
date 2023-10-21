@@ -1,9 +1,23 @@
+## test bit_or
+a, b = regint(1), 100
+c = a < b
+d = 1 == 2
+d = regint(d)
+e = c.bit_or(d)
+print_ln("%s, %s, %s, %s, %s", a, b, c, d, e)
+@if_e(e)
+def _():
+	print_ln("1")
+@else_
+def _():
+	print_ln("2")
+
 ## test sub-tensor
-a = regint.Tensor([10, 2])
-a.assign_all(1)
-b, c = a[1]
-a[1][0] = 2
-print_ln("%s, %s, %s", a[1], b, c)
+# a = regint.Tensor([10, 2])
+# a.assign_all(1)
+# b, c = a[1]
+# a[1][0] = 2
+# print_ln("%s, %s, %s", a[1], b, c)
 
 ## test xor, maybe_set
 # from util_mpc import maybe_set

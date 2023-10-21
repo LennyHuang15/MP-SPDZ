@@ -4,7 +4,7 @@ from Compiler.library import for_range, do_while, while_do, break_loop
 from util_mpc import *
 from link_graph import Graph
 
-HIER_HEAP = 0
+HIER_HEAP = 1
 if HIER_HEAP:
 	# from hier_heap import Heap
 	from HT_heap import Heap
@@ -13,7 +13,7 @@ else:
 
 # TERM_EARLY = 1
 DEBUG = 0
-ASSERT = 1
+# ASSERT = 1
 
 def _explore_node(graph, S, T, min_dist, obest_bridge, \
 		expand_s, pq, exploreds, dists, exploreds_op, dists_op, \

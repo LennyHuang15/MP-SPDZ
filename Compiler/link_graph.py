@@ -3,13 +3,15 @@ from Compiler.library import for_range, while_do, if_, if_e, else_, break_loop
 from Compiler.library import print_ln, print_ln_to, crash, runtime_error_if, get_player_id
 from Compiler.program import Program
 from util import max, argmax
-from util_mpc import N_PARTY, print_regvec, input_array, input_tensor, print_tensor
+from util_mpc import N_PARTY, ASSERT, \
+	print_regvec, input_array, input_tensor, print_tensor
 
-NO_POT = 1
+NO_POT = 0
 USE_LM = 0
-DYN_POT = 0
+DYN_POT = 1
 
-MAX_DEG = 512# to be used in HT-heap
+ASSERT = 0
+MAX_DEG = 512# also used in HT-heap
 def tensor2link_graph(NN, edges, rev=False):
 	degs = regint.Array(NN)
 	degs.assign_all(0)
@@ -117,14 +119,17 @@ class Graph(object):
 		if DYN_POT:
 			self.dist_ST_ps = [self.dist_est_dyn(S, T, p, True) for p in range(N_PARTY)]
 	
-	def build_ch(self, revealing=True):
+	def build_ch(self, merging=True, revealing=False):
 		NN, NE = self.N, self.E
 		link_index, link_edges = self.link_index, self.link_edges
 		levels, node_levels = input_array(NN), input_array(NN)
 		print_ln("Building CH: %s, %s" % (NN, levels.shape))
-		weights = self.weights
-		if revealing:
-			weights = weights.reveal()
+		if merging:
+			weights = self.weights
+			if revealing:
+				weights = weights.reveal()
+		else:
+			weights = regint.Array(NE)
 
 		MAX_CH = NN * 16
 		# (src, dst, min, w, pt_next, pt_next_rev)
@@ -151,13 +156,15 @@ class Graph(object):
 			sz.iadd(1)
 		def lin_search(st, en, key, is_rev=0):
 			# print_ln("search %s %s %s", st, en, key)
-			runtime_error_if(st == -1, "st %s", st)
+			if ASSERT:
+				runtime_error_if(st == -1, "st %s", st)
 			# runtime_error_if((en < 0).bit_or(en >= sz), "en %s", en)
 			pt = regint(st)
 			@while_do(lambda: True)
 			def _():
-				runtime_error_if(pt < 0, "pt = %s", pt)
-				runtime_error_if(pt >= sz, "pt = %s >= %s", pt, sz)
+				if ASSERT:
+					runtime_error_if(pt < 0, "pt = %s", pt)
+					runtime_error_if(pt >= sz, "pt = %s >= %s", pt, sz)
 				pt_next = ch_edges[pt][-2 + is_rev]
 				@if_(ch_edges[pt][1 - is_rev] == key)
 				def _():
@@ -175,9 +182,12 @@ class Graph(object):
 			@for_range(link_index[nid], link_index[nid+1])
 			def _(eid):
 				dst, w_p, eid_ = link_edges[eid][:]
-				w = weights[eid_]
-				if revealing:
-					w = w.reveal()
+				if merging:
+					w = weights[eid_]
+					if revealing:
+						w = w.reveal()
+				else:
+					w = w_p
 				add_edge(nid, dst, -1, w)
 		runtime_error_if(sz != NE, "sz %s != %s", sz, NE)
 		# print_ln("pts: %s %s %s", pts[0], pts[1], pts[2])
@@ -190,7 +200,7 @@ class Graph(object):
 		# contract and add shortcuts
 		n_visit, n_sc = [regint(0) for _ in range(2)]
 		NSTEP = NN
-		STEP, STEP_vs = NN // NSTEP, 20000
+		STEP, STEP_vs = NN // NSTEP, 50000
 		milestone = regint(0)
 		@for_range(NN)
 		def _(lev):
@@ -206,7 +216,8 @@ class Graph(object):
 			@while_do(lambda: ieid >= 0)
 			def _():
 				src, dst_, imid, iw_p, _, inext = ch_edges[ieid]
-				runtime_error_if(dst_ != nid, "dst_ %s != %s", dst_, nid)
+				if ASSERT:
+					runtime_error_if(dst_ != nid, "dst_ %s != %s", dst_, nid)
 				iw = ws[ieid]
 				@if_(levels[src] > lev)
 				def _():
@@ -216,7 +227,8 @@ class Graph(object):
 					@while_do(lambda: oeid >= 0)
 					def _():
 						src_, dst, omid, ow_p, onext, _ = ch_edges[oeid]
-						runtime_error_if(src_ != nid, "src_ %s != %s", src_, nid)
+						if ASSERT:
+							runtime_error_if(src_ != nid, "src_ %s != %s", src_, nid)
 						ow = ws[oeid]
 						@if_((src != dst).bit_and(levels[dst] > lev))
 						def _():
@@ -228,7 +240,8 @@ class Graph(object):
 							pos = lin_search(s_st, s_en, dst, 0)
 							pos_rev = lin_search(d_st, d_en, src, 1)
 							# print_ln("pos: %s, %s", pos, pos_rev)
-							runtime_error_if((pos == -1) != (pos_rev == -1))
+							if ASSERT:
+								runtime_error_if((pos == -1) != (pos_rev == -1))
 							@if_e(pos == -1)
 							def _():
 								add_edge(src, dst, nid, w_sc)

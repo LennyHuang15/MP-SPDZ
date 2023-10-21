@@ -1,18 +1,23 @@
 from Compiler.types import *
 from Compiler.library import runtime_error_if, print_ln, print_str, \
-	if_, if_e, else_, while_do, do_while, for_range
+	if_, if_e, else_, while_do, do_while, break_loop, \
+	for_range, for_range_opt_multithread
 from util_heap import BaseHeap, sift_up, sift_down, heapify
-from util_mpc import copy, print_arr, add_stat, OFS
+from util_mpc import copy, print_arr, add_stat, OFS, ASSERT, DATA_BOUND
 from heap import Heap as HeapFlat
+from link_graph import MAX_DEG
 from stack import Stack
+from util import max
 
-ASSERT = 1
+# ASSERT = 1
 DEBUG = 0
 MAX_PATH = 128
+PUSH_PARALLEL = 1
+MULTI_THREAD = 2
 def key_l(el):
 	return el[0]
 def dist2w(d):
-	return d
+	return 1
 	# return DATA_BOUND / (d**1)
 
 from enum import IntEnum
@@ -29,7 +34,6 @@ class Heap(BaseHeap):
 		self.key_h = lambda tidx: key_l(self.top_l(tidx))
 		self.key_hfm = lambda tidx: self.tours[tidx][FIELDS.W]
 
-		from link_graph import MAX_DEG
 		self.hfm_queue = HeapFlat(MAX_DEG, value_type=regint, \
 			key=self.key_hfm)
 		self.arr_h = HeapFlat(cap_h, value_type=regint, \
@@ -49,19 +53,108 @@ class Heap(BaseHeap):
 	def push(self, entry, dist_p=regint(0)):
 		arr_l, tours, hfm_queue = self.arr_l, self.tours, self.hfm_queue
 		size, size_l, size_t = self.size, self.size_l, self.size_tour
-		# print_ln("push %s, %s", pos_st, size_l)
 		if ASSERT:
-			runtime_error_if(size_l >= self.cap_l, "push")
+			runtime_error_if(size_l >= self.cap_l, "push %s >= %s", size_l, self.cap_l)
 		arr_l[size_l] = entry
 		tours[size_t] = (-1, -1, size_l, size_l, -1, dist2w(dist_p))
 		hfm_queue.push(size_t)
 		for x in [size, size_l, size_t]:
 			x.iadd(1)
 	def end_push(self):
+		if PUSH_PARALLEL:
+			self._end_push_parallel()
+		else:
+			self._end_push()
+		super().end_push()
+	def _end_push_parallel(self):
 		arr_l, arr_h, size_t = self.arr_l, self.arr_h, self.size_tour
 		tours, hfm_queue = self.tours, self.hfm_queue
-		# print_ln("end_push %s, %s", size_t, hfm_queue.size)
-		# hfm_queue.print("hfm_queue")
+		MAX_LEV = 128
+		arr_levs = regint.Tensor([MAX_LEV, MAX_DEG])
+		arr_levs.assign_all(-1)
+		size_levs = regint.Array(MAX_LEV)
+		size_levs.assign_all(0)
+		def real_comp(lev, i):
+			tidx_ = arr_levs[lev][i]
+			tidx1, tidx2, _, _, lev_par, _ = tours[tidx_]
+			if ASSERT:
+				runtime_error_if(lev_par != lev, "lev_par %s != %s", lev_par, lev)
+			# really compare
+			tour1, tour2 = tours[tidx1], tours[tidx2]
+			wid1, wid2 = tour1[FIELDS.WID], tour2[FIELDS.WID]
+			if ASSERT:
+				runtime_error_if(wid1 < 0, "wid1 %s", wid1)
+				runtime_error_if(wid2 < 0, "wid2 %s", wid2)
+			r_win = key_l(arr_l[wid2]) < key_l(arr_l[wid1])# sbit
+			r_win = r_win.reveal()
+			# add_stat(OFS.Cmp)
+			wid, lid = r_win.cond_swap(wid1, wid2)
+			tours[tidx_][FIELDS.WID] = wid
+			tours[tidx_][FIELDS.LID] = lid
+			tours[tidx_][FIELDS.R_WIN] = r_win
+		@if_(hfm_queue.size > 0)
+		def _():
+			# construct Huffman struct and save tours into levels
+			# not really compare
+			if DEBUG:
+				print_ln("HT to build %s %s %s", self.size_l, size_t, hfm_queue.size)
+			@while_do(lambda: hfm_queue.size >= 2)
+			def _():
+				tidx1, tidx2 = hfm_queue.pop(), hfm_queue.pop()
+				tour1, tour2 = tours[tidx1], tours[tidx2]
+				lev1, lev2 = tour1[FIELDS.R_WIN], tour2[FIELDS.R_WIN]
+				lev_par = max(lev1, lev2) + 1
+				d1, d2 = tour1[FIELDS.W], tour2[FIELDS.W]
+				tours[size_t] = (tidx1, tidx2, -1, -1, lev_par, d1 + d2)
+				hfm_queue.push(size_t)
+				if DEBUG:
+					print_ln("HT-push %s,%s->%s", lev1, lev2, lev_par)
+				### save into associating level
+				if ASSERT:
+					runtime_error_if(lev_par >= MAX_LEV, "lev_par %s", lev_par)
+				size_lev = size_levs[lev_par]
+				if ASSERT:
+					runtime_error_if(size_lev >= MAX_DEG, "size_levs %s", size_lev)
+				arr_levs[lev_par][size_lev] = size_t
+				size_levs[lev_par] += 1
+				if DEBUG:
+					print_arr(arr_levs[lev_par], size_lev, name="-L")
+				###
+				size_t.iadd(1)
+			tidx = hfm_queue.pop()
+			if DEBUG:
+				print_ln("HT built %s %s", self.size_l ,size_t)
+			# batch compare
+			@for_range(MAX_LEV)
+			def _(lev_):
+				size_lev, lev = size_levs[lev_], MemValue(lev_)
+				@if_(size_lev == 0)
+				def _():
+					break_loop()
+				SINGLE_THREAD = regint(MULTI_THREAD == 1)
+				if DEBUG:
+					print_ln("comp %s %s", lev_, size_lev)
+					print_arr(arr_levs[lev], size_lev, name="L")
+					print_ln("%s %s", size_lev < MULTI_THREAD, SINGLE_THREAD)
+				@if_e((size_lev < MULTI_THREAD * 4).bit_or(SINGLE_THREAD))
+				def _():
+					@for_range(size_lev)
+					def _(i):
+						real_comp(lev, i)
+				@else_
+				def _():
+					@for_range_opt_multithread(MULTI_THREAD, size_lev)
+					# @for_range(size_lev)
+					def _(i):
+						real_comp(lev, i)
+				add_stat(OFS.Cmp, size_lev)
+			arr_h.push(tidx)
+	def _end_push(self):
+		arr_l, arr_h, size_t = self.arr_l, self.arr_h, self.size_tour
+		tours, hfm_queue = self.tours, self.hfm_queue
+		if DEBUG:
+			print_ln("end_push %s, %s", size_t, hfm_queue.size)
+			hfm_queue.print("hfm_queue")
 		@if_(hfm_queue.size > 0)
 		def _():
 			@while_do(lambda: hfm_queue.size >= 2)
@@ -79,7 +172,6 @@ class Heap(BaseHeap):
 				size_t.iadd(1)
 			tidx = hfm_queue.pop()
 			arr_h.push(tidx)
-		super().end_push()
 
 	def pop_l(self, tidx_top):
 		arr_l, tours, path = self.arr_l, self.tours, self.path

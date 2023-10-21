@@ -1,9 +1,9 @@
 from Compiler.types import *
 from Compiler.library import runtime_error_if
-from util_mpc import copy, alloc_arr, print_arr
+from util_mpc import copy, alloc_arr, print_arr, ASSERT
 from util_heap import BaseHeap, sift_up, sift_down
 
-ASSERT = 1
+# ASSERT = 1
 class Heap(BaseHeap):
 	def __init__(self, capacity, WIDTH=None, value_type=sint, key=None):
 		self.capacity, self.size = regint(capacity), regint(0)
@@ -17,7 +17,7 @@ class Heap(BaseHeap):
 	def push(self, entry, dist_p=regint(0)):
 		arr, size = self.arr, self.size
 		if ASSERT:
-			runtime_error_if(size >= self.capacity, "push")
+			runtime_error_if(size >= self.capacity, "heap push")
 		arr[size] = entry
 		size.iadd(1)
 		self._sift_up()
