@@ -1,15 +1,8 @@
 from link_graph import Graph
-from Compiler.program import Program
-from Compiler.library import public_input
-from util_mpc import *
+from util_mpc import N_PARTY, city, N, E
 # prog.use_edabit(True)
 
 print_ln("Build CH on %s" % (city))
-# with open(fn_cin) as fp:
-# 	N_PARTY = read_ints(fp)[0]
-# 	city = fp.readline()[:-1]
-# 	N, E = read_ints(fp)[:2]
-print(N_PARTY, city, N, E)
 graph = Graph()
 graph.load(N, E)
 

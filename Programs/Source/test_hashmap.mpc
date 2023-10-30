@@ -1,20 +1,28 @@
 from hash_map import HashMap
 from util_mpc import *
 
-hash_map = HashMap(100)
-key1 = (101, 10)
-hash_map.insert(*key1, 0)
-key2 = (10, 101)
-hash_map.insert(*key2, 1)
-key3 = (0, 15)
-hash_map.insert(*key3, 2)
 
-val = hash_map.find(*key1)
+hash_map = HashMap(100, 10)
+
+key1 = (91, 10)
+hash_map.insert(key1, 0)
+key2 = (10, 99)
+hash_map.insert(key2, 1)
+key3 = (0, 99)
+hash_map.insert(key3, 2)
+
+val = hash_map.find(key1)
 print_ln("[%s,%s]: %s", *key1, val)
-val = hash_map.find(*key2)
+val = hash_map.find(key2)
 print_ln("[%s,%s]: %s", *key2, val)
-val = hash_map.find(*key3)
+val = hash_map.find(key3)
 print_ln("[%s,%s]: %s", *key3, val)
-key4 = (1220, 130)
-val = hash_map.find(*key4)
+key4 = (80, 30)
+val = hash_map.find(key4)
 print_ln("[%s,%s]: %s", *key4, val)
+
+# hash_map = HashMap(338024, 16)
+# key1 = (91, 10)
+# hash_map.insert(key1, 0)
+
+# 54397,48286 4442598

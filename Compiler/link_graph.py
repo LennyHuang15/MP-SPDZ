@@ -1,7 +1,6 @@
 from Compiler.types import *
-from Compiler.library import for_range, while_do, if_, if_e, else_, break_loop
-from Compiler.library import print_ln, print_ln_to, crash, runtime_error_if, get_player_id
-from Compiler.program import Program
+from Compiler.library import for_range, while_do, break_loop, \
+	if_, if_e, else_, print_ln, print_ln_to, crash, runtime_error_if
 from util import max, argmax
 from util_mpc import N_PARTY, ASSERT, \
 	print_regvec, input_array, input_tensor, print_tensor
@@ -10,8 +9,13 @@ NO_POT = 0
 USE_LM = 0
 DYN_POT = 1
 
-ASSERT = 0
+HIER_HEAP = 1
+
+# ASSERT = 1
+DEBUG = 0
+PRINT = 0
 MAX_DEG = 512# also used in HT-heap
+USE_HASH = 1
 def tensor2link_graph(NN, edges, rev=False):
 	degs = regint.Array(NN)
 	degs.assign_all(0)
@@ -76,13 +80,16 @@ class Graph(object):
 		self.link_index, self.link_edges, self.link_index_rev, \
 			self.link_edges_rev = load_link_graph(NN, NE, 3, True)
 		print_ln("Graph loaded: %d nodes, %d edges" % (self.N, self.E))
-		self.weights = load_weights(NE)
-		print_ln("Weights loaded: %s", self.weights.shape)
+		if N_PARTY > 1:
+			self.weights = load_weights(NE)
+			print_ln("Weights loaded: %s", self.weights.shape)
+		else:
+			self.weights = None
 
 		self.lmemb, self.ch = None, None
+		self.dim, self.E_new = dim, E_new
 		# static LT embedding
 		if dim is not None and dim > 0:
-			self.dim = dim
 			self.lmemb = input_tensor(NN, dim)
 			print_ln("Lmemb loaded: %s", self.lmemb.shape)
 		if E_new is not None and E_new > 0:
@@ -107,6 +114,21 @@ class Graph(object):
 		# dynamic LT embedding
 		if dim is not None and dim > 0:
 			_, self.parties_emb = _load_array_parties(NN * dim)
+		# arrs for queries
+		self.exploreds_s, self.dists_s = regint.Array(NN), sint.Array(NN)
+		self.exploreds_t, self.dists_t = regint.Array(NN), sint.Array(NN)
+		# heaps for queries
+		E_ = E_new if E_new is not None and E_new > 0 else NE
+		if HIER_HEAP:
+			from HT_heap import Heap
+			qs, qt = Heap(E_, NN, 3), Heap(E_, NN, 3)
+		else:
+			from heap import Heap
+			qs, qt = Heap(E_, 3), Heap(E_, 3)
+		self.qs, self.qt = qs, qt
+		# to store query results (path & dist)
+		self.ans_s, self.ans_dist_s = regint.Array(NN), sint.Array(NN)
+		self.ans_t, self.ans_dist_t = regint.Array(NN), sint.Array(NN)
 
 	def _build_ST(self, S, T):
 		self.S, self.T = S, T
@@ -130,29 +152,43 @@ class Graph(object):
 				weights = weights.reveal()
 		else:
 			weights = regint.Array(NE)
-
-		MAX_CH = NN * 16
+		FAC_CH = 64
+		MAX_CH = NN * FAC_CH
 		# (src, dst, min, w, pt_next, pt_next_rev)
 		ch_edges, sz = regint.Tensor([MAX_CH, 6]), regint(0)
 		ws = weights.value_type.Array(MAX_CH)
 		pts, pts_rev = [regint.Tensor([NN, 2]) for _ in range(2)]
 		pts.assign_all(-1)
 		pts_rev.assign_all(-1)
-		def _add_pt(pts, nid, nid_, is_rev=0):
-			@if_(pts[nid][0] < 0)
+		if USE_HASH:
+			from hash_map import HashMap
+			hash_map = HashMap(NN, FAC_CH)
+		def _add_pt(pts_, nid, is_rev=0):
+			@if_(pts_[nid][0] < 0)
 			def _():
-				pts[nid][0] = sz
-			pre_tail = pts[nid][1]
+				pts_[nid][0] = sz
+			pre_tail = pts_[nid][1]
 			@if_(pre_tail >= 0)
 			def _():
 				ch_edges[pre_tail][-2 + is_rev] = sz
-			pts[nid][1] = sz
+			pts_[nid][1] = sz
+			if DEBUG:
+				nid_ = ch_edges[sz][1 - is_rev]
+				sz.iadd(1)
+				pt = lin_search(pts_[nid][0], pts_[nid][1], nid_, is_rev=is_rev)
+				sz.iadd(-1)
+				runtime_error_if(pt != sz, \
+					"add_pt[%s,%s] already exists %s", nid, nid_, pt)
 		def add_edge(src, dst, mid, w):
 			runtime_error_if(sz >= MAX_CH, "sz %s >= %s", sz, MAX_CH)
 			ch_edges[sz] = (src, dst, mid, w, -1, -1)
 			ws[sz] = w
-			_add_pt(pts, src, dst, is_rev=0)
-			_add_pt(pts_rev, dst, src, is_rev=1)
+			_add_pt(pts, src, is_rev=0)
+			_add_pt(pts_rev, dst, is_rev=1)
+			if USE_HASH:
+				hash_map.insert((src, dst), sz)
+				# if DEBUG:
+				# 	print_ln("hash_map[%s,%s] = %s", src, dst, sz)
 			sz.iadd(1)
 		def lin_search(st, en, key, is_rev=0):
 			# print_ln("search %s %s %s", st, en, key)
@@ -199,19 +235,18 @@ class Graph(object):
 
 		# contract and add shortcuts
 		n_visit, n_sc = [regint(0) for _ in range(2)]
-		NSTEP = NN
-		STEP, STEP_vs = NN // NSTEP, 50000
-		milestone = regint(0)
+		STEP_vs, milestone = int(1e6), regint(0)
 		@for_range(NN)
 		def _(lev):
 			# print process
-			# @if_(lev % STEP == 0)
 			@if_(n_visit >= milestone)
 			def _():
 				print_ln("%s/%s: %s,%s", lev, NN, n_visit, n_sc)
 				milestone.iadd(STEP_vs)
 			# begin
 			nid = node_levels[lev]
+			if PRINT:
+				print_ln("nid[%s]", nid)
 			ieid = pts_rev[nid][0]
 			@while_do(lambda: ieid >= 0)
 			def _():
@@ -224,6 +259,8 @@ class Graph(object):
 					# use the deg before adding shortcuts is enough
 					s_st, s_en = pts[src]
 					oeid = pts[nid][0]
+					if PRINT:
+						print_ln("\tsrc[%s]: %s,%s", src, s_st, s_en)
 					@while_do(lambda: oeid >= 0)
 					def _():
 						src_, dst, omid, ow_p, onext, _ = ch_edges[oeid]
@@ -232,18 +269,28 @@ class Graph(object):
 						ow = ws[oeid]
 						@if_((src != dst).bit_and(levels[dst] > lev))
 						def _():
-							# print_ln("visit %s->%s", src, dst)
 							n_visit.iadd(1)
 							d_st, d_en = pts_rev[dst]
+							if PRINT:
+								print_ln("\t\tdst[%s]: %s,%s", dst, d_st, d_en)
 							# add/update shortcut (s, d) = iw + ow
 							w_sc = iw + ow
-							pos = lin_search(s_st, s_en, dst, 0)
-							pos_rev = lin_search(d_st, d_en, src, 1)
-							# print_ln("pos: %s, %s", pos, pos_rev)
-							if ASSERT:
-								runtime_error_if((pos == -1) != (pos_rev == -1))
+							if USE_HASH:
+								pos = hash_map.find((src, dst))
+								if ASSERT:
+									runtime_error_if(pos > s_en, \
+										"search edge (%s,%s): %s > %s", \
+										src, dst, pos, s_en)
+							else:
+								pos = lin_search(s_st, s_en, dst, 0)
+								if ASSERT:
+									pos_rev = lin_search(d_st, d_en, src, 1)
+									runtime_error_if(pos != pos_rev, "pos %s != %s", pos, pos_rev)
+									# runtime_error_if((pos == -1) != (pos_rev == -1))
 							@if_e(pos == -1)
 							def _():
+								# if USE_HASH and DEBUG:
+								# 	print_ln("hash_map[%s,%s] = %s", src, dst, pos)
 								add_edge(src, dst, nid, w_sc)
 								n_sc.iadd(1)
 							@else_

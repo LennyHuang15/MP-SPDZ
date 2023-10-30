@@ -1,10 +1,10 @@
 from Compiler.types import *
-from Compiler.library import print_ln, print_ln_if, if_, if_e, else_
-from Compiler.library import for_range, do_while, while_do, break_loop
+from Compiler.library import print_ln, print_ln_if, if_, if_e, else_, \
+	for_range, for_range_opt, do_while, while_do, break_loop
 from util_mpc import *
-from link_graph import Graph
+from link_graph import Graph, HIER_HEAP
 
-HIER_HEAP = 1
+# HIER_HEAP = 1
 if HIER_HEAP:
 	# from hier_heap import Heap
 	from HT_heap import Heap
@@ -57,7 +57,9 @@ def _explore_node(graph, S, T, min_dist, obest_bridge, \
 def _expand_side(graph, S, T, min_dist, obest_bridge, \
 		expand_s, pq, link_index, link_edges, \
 		exploreds, dists, exploreds_op, dists_op):
+	pq.begin_pop()
 	dist, opre_nid, onid = pq.pop()
+	pq.end_pop()
 	add_stat(OFS.Pop)
 	pre_nid, nid = opre_nid.reveal(), onid.reveal()
 	if DEBUG:
@@ -91,15 +93,21 @@ def SPSP(graph, S, T):
 	levels, link_index_for, link_edges_for, \
 		link_index_rev, link_edges_rev, weights = graph.ch
 
-	exploreds_s, dists_s = regint.Array(N), sint.Array(N)
-	exploreds_t, dists_t = regint.Array(N), sint.Array(N)
+	# exploreds_s, dists_s = regint.Array(N), sint.Array(N)
+	# exploreds_t, dists_t = regint.Array(N), sint.Array(N)
+	exploreds_s, dists_s = graph.exploreds_s, graph.dists_s
+	exploreds_t, dists_t = graph.exploreds_t, graph.dists_t
 	for vec in [exploreds_s, dists_s, exploreds_t, dists_t]:
 		vec.assign_all(-1)
 	p_st = graph.pot_func_bidir(S, T, S, True)
-	if HIER_HEAP:
-		qs, qt = Heap(E_new, N, 3), Heap(E_new, N, 3)
-	else:
-		qs, qt = Heap(E_new, 3), Heap(E_new, 3)
+	# if HIER_HEAP:
+	# 	qs, qt = Heap(E_new, N, 3), Heap(E_new, N, 3)
+	# else:
+	# 	qs, qt = Heap(E_new, 3), Heap(E_new, 3)
+	qs, qt = graph.qs, graph.qt
+	qs.clear()
+	qt.clear()
+	# push src & dst
 	qs.begin_push(0)
 	qs.push(sint_tuple(p_st, N, S))
 	qs.end_push()
@@ -136,9 +144,12 @@ def SPSP(graph, S, T):
 	best_s, best_t = [x.reveal() for x in obest_bridge]
 	if ASSERT:
 		crash((best_s == -1).bit_or(best_t == -1))
-	ans_s, ans_dist_s, len_s = obacktrace_path(S, best_s, exploreds_s, dists_s, N)
-	ans_t, ans_dist_t, len_t = obacktrace_path(T, best_t, exploreds_t, dists_t, N)
+	ans_s, ans_dist_s, len_s = obacktrace_path(S, best_s, exploreds_s, dists_s, N, graph.ans_s, graph.ans_dist_s)
+	ans_t, ans_dist_t, len_t = obacktrace_path(T, best_t, exploreds_t, dists_t, N, graph.ans_t, graph.ans_dist_t)
 	ans = vec_merge(ans_s, len_s, ans_t, len_t)
-	ans_dist_t[:] = min_dist - ans_dist_t[:]
+	# ans_dist_t[:] = min_dist - ans_dist_t[:]
+	@for_range_opt(len_t)
+	def _(i):
+		ans_dist_t[i] = min_dist - ans_dist_t[i]
 	ans_dist = vec_merge(ans_dist_s, len_s, ans_dist_t, len_t)
 	return ans, ans_dist, len_s + len_t

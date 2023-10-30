@@ -1,6 +1,8 @@
 + /HOSTS
 + /include_rsync.txt
 + /*.sh
++ /*.py
++ /CONFIG*
 + /Compiler/
 + /Compiler/util_mpc.py
 + /Compiler/*.py
@@ -13,6 +15,12 @@
 + /Programs/Public-Input/*
 + /Programs/Public-Input/graph/
 + /Programs/Public-Input/graph/*
++ /Programs/Public-Input/graph/CAL/
++ /Programs/Public-Input/graph/CAL/*.in
++ /Programs/Public-Input/graph/BJ/
++ /Programs/Public-Input/graph/BJ/*.in
++ /Programs/Public-Input/graph/FLA/
++ /Programs/Public-Input/graph/FLA/*.in
 + /Programs/Source/
 + /Programs/Source/*.mpc
 - *

@@ -1,9 +1,10 @@
 from Compiler.types import *
 from Compiler.library import runtime_error_if, print_ln, print_str, \
 	if_, if_e, else_, while_do, do_while, break_loop, \
-	for_range, for_range_opt_multithread
-from util_heap import BaseHeap, sift_up, sift_down, heapify
-from util_mpc import copy, print_arr, add_stat, OFS, ASSERT, DATA_BOUND
+	for_range, for_range_opt_multithread, for_range_opt
+from util_heap import BaseHeap
+from util_mpc import copy, print_arr, add_stat, get_stat, OFS, \
+	ASSERT, DATA_BOUND
 from heap import Heap as HeapFlat
 from link_graph import MAX_DEG
 from stack import Stack
@@ -12,7 +13,7 @@ from util import max
 # ASSERT = 1
 DEBUG = 0
 MAX_PATH = 128
-PUSH_PARALLEL = 1
+PUSH_PARALLEL = 0
 MULTI_THREAD = 2
 def key_l(el):
 	return el[0]
@@ -33,14 +34,21 @@ class Heap(BaseHeap):
 
 		self.key_h = lambda tidx: key_l(self.top_l(tidx))
 		self.key_hfm = lambda tidx: self.tours[tidx][FIELDS.W]
+		self.arr_h = HeapFlat(cap_h, value_type=regint, \
+			key=self.key_h)
 
 		self.hfm_queue = HeapFlat(MAX_DEG, value_type=regint, \
 			key=self.key_hfm)
-		self.arr_h = HeapFlat(cap_h, value_type=regint, \
-			key=self.key_h)
 		self.path = Stack(MAX_PATH)
+	def clear(self):
+		self.size.update(0)
+		self.size_l.update(0)
+		self.size_tour.update(0)
+		self.arr_h.clear()
 	
 	def top_l(self, tidx):
+		if ASSERT:
+			runtime_error_if(self.size <= 0, "top_l")
 		wid = self.tours[tidx][FIELDS.WID]
 		return self.arr_l[wid]
 	def top(self):
@@ -125,7 +133,7 @@ class Heap(BaseHeap):
 			if DEBUG:
 				print_ln("HT built %s %s", self.size_l ,size_t)
 			# batch compare
-			@for_range(MAX_LEV)
+			@for_range_opt(MAX_LEV)
 			def _(lev_):
 				size_lev, lev = size_levs[lev_], MemValue(lev_)
 				@if_(size_lev == 0)
@@ -138,7 +146,7 @@ class Heap(BaseHeap):
 					print_ln("%s %s", size_lev < MULTI_THREAD, SINGLE_THREAD)
 				@if_e((size_lev < MULTI_THREAD * 4).bit_or(SINGLE_THREAD))
 				def _():
-					@for_range(size_lev)
+					@for_range_opt(size_lev)
 					def _(i):
 						real_comp(lev, i)
 				@else_
@@ -172,6 +180,7 @@ class Heap(BaseHeap):
 				size_t.iadd(1)
 			tidx = hfm_queue.pop()
 			arr_h.push(tidx)
+		# print_ln("push arr_h[%s]", arr_h.size)
 
 	def pop_l(self, tidx_top):
 		arr_l, tours, path = self.arr_l, self.tours, self.path
@@ -221,17 +230,24 @@ class Heap(BaseHeap):
 	def pop(self):
 		arr_h, size = self.arr_h, self.size
 		if ASSERT:
-			runtime_error_if(arr_h.size <= 0, "pop %s", arr_h.size)
-			runtime_error_if(size <= 0, "pop %s", size)
+			runtime_error_if(arr_h.size <= 0, "pop1 %s", arr_h.size)
+			runtime_error_if(size <= 0, "pop2 %s", size)
 		tidx = arr_h.top()
+		st_cmp = get_stat(OFS.Cmp)
 		top = self.pop_l(tidx)
+		en_cmp = get_stat(OFS.Cmp)
+		add_stat(OFS.CmpPopL, en_cmp - st_cmp)
 		size.iadd(-1)
+		st_cmp_ = get_stat(OFS.Cmp)
 		@if_e(tidx == -1)# empty
 		def _():
 			arr_h.pop()
 		@else_
 		def _():
 			arr_h.replace_top(tidx)
+		# print_ln("pop arr_h[%s]", arr_h.size)
+		en_cmp_ = get_stat(OFS.Cmp)
+		add_stat(OFS.CmpPopH, en_cmp_ - st_cmp_)
 		return top
 
 	def _print_tours(self):

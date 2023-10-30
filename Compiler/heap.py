@@ -11,8 +11,12 @@ class Heap(BaseHeap):
 		if key is None:
 			key = lambda el: el[0]
 		self.key = key
+	def clear(self):
+		self.size.update(0)
 
 	def top(self):
+		if ASSERT:
+			runtime_error_if(self.size <= 0, "heap top")
 		return copy(self.arr[0])
 	def push(self, entry, dist_p=regint(0)):
 		arr, size = self.arr, self.size

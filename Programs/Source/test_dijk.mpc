@@ -3,17 +3,12 @@ from Compiler.program import Program
 from Compiler.library import public_input
 import numpy as np
 from util_mpc import *
-
 prog = Program.prog
-# prog.use_edabit(True)
+prog.use_edabit(True)
 
-# city = "CAL"
-# dir_pub = prog.programs_dir + "/Public-Input/"
-# dir_city = dir_pub + "graph/%s/" % (city)
 print_ln("test_dijk on %s" % city)
 
-BATCH_QUERY, PRINT_RESULT = 0, 1
-# fn_cin = dir_city + "compile.in"
+BATCH_QUERY, PRINT_RESULT = 1, 0
 with open(fn_cin) as fp:
 	N_PARTY = read_ints(fp)[0]
 	city = fp.readline()[:-1]
@@ -26,12 +21,11 @@ with open(fn_cin) as fp:
 		S, T = read_ints(fp)[:2]
 print(N_PARTY, N, E, dim, E_new)
 graph = Graph()
-
 graph.load(N, E, dim, E_new)
 
 if BATCH_QUERY:
 	fn_query = dir_city + "query.in"
-	fn_ans = dir_city + "query.out"
+	# fn_ans = dir_city + "query.out"
 	n_query, tmp, sts = read_graph(fn_query)
 else:
 	n_query, sts = 1, np.array([[S, T]])

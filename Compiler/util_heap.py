@@ -15,6 +15,11 @@ class BaseHeap(object):
 	def end_push(self):
 		en_cmp = get_stat(OFS.Cmp)
 		add_stat(OFS.CmpPush, en_cmp - self.st_cmp)
+	def begin_pop(self):
+		self.st_cmp = get_stat(OFS.Cmp)
+	def end_pop(self):
+		en_cmp = get_stat(OFS.Cmp)
+		add_stat(OFS.CmpPop, en_cmp - self.st_cmp)
 
 def _idx_par(ch, st=0):
 	return st + (ch - st - 1) / 2

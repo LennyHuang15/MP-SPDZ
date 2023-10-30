@@ -2,21 +2,21 @@ from Compiler.types import sint, regint, sintbit, Array
 from Compiler.library import print_ln, print_str, public_input, \
 	crash, runtime_error_if, for_range, while_do, break_loop, if_, if_e, else_
 from Compiler.program import Program
-prog = Program.prog
 def read_ints(fp):
     return [int(x) for x in fp.readline()[:-1].split(" ")]
 
 ASSERT = 1
 DATA_BOUND = int(1e7)
 
+prog = Program.prog
 dir_pub = prog.programs_dir + "/Public-Input/graph/"
-# dir_city = dir_pub + "%s/" % (city)
 fn_cin = dir_pub + "compile.in"
 with open(fn_cin) as fp:
 	N_PARTY = read_ints(fp)[0]
 	city = fp.readline()[:-1]
 	N, E = read_ints(fp)[:2]
 print("N_PARTY", N_PARTY, "city", city, N, E)
+dir_city = dir_pub + "%s/" % (city)
 
 def sint_tuple(*args):
 	return tuple(sint(x) for x in args)
@@ -151,9 +151,10 @@ def insertion_sort(arr, st, en, OFFSET=None, ws=None, ws_st=None):
 			ws[idx_ws(j+1)] = key
 			# print_ln("ws[%s]: %s", en-st, ws.get_part(0, 10))
 
-def obacktrace_path(S, T, exploreds, dists, N):
-	ans, ans_dist, length = regint.Array(N), sint.Array(N), regint(0)
-	nid = regint(T)
+def obacktrace_path(S, T, exploreds, dists, N, ans=None, ans_dist=None):
+	if ans is None:
+		ans, ans_dist = regint.Array(N), sint.Array(N)
+	length, nid = regint(0), regint(T)
 	@while_do(lambda: True)
 	def _():
 		ans[length], ans_dist[length] = nid, dists[nid]
@@ -175,7 +176,7 @@ def vec_merge(vec, l, vec_rev, l_rev):
 
 from enum import IntEnum
 OFS = IntEnum('OFS', ('Explore', 'Search', 'Update', 'Push', 'Pop', \
-					'Heap', 'Cmp', 'CmpPush', 'CmpHeapify'), start=0)
+	'Heap', 'Cmp', 'CmpPush', 'CmpPop', 'CmpPopL', 'CmpPopH', 'CmpHeapify'), start=0)
 stats = regint.Array(len(OFS))
 
 def init_stats():
