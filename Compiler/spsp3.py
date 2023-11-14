@@ -2,14 +2,14 @@ from Compiler.types import *
 from Compiler.library import print_ln, print_ln_if, if_, if_e, else_, \
 	for_range, for_range_opt, do_while, while_do, break_loop
 from util_mpc import *
-from link_graph import Graph, HIER_HEAP
+from link_graph import Graph, HIER_HEAP, NO_POT
 
 # HIER_HEAP = 1
-if HIER_HEAP:
-	# from hier_heap import Heap
-	from HT_heap import Heap
-else:
-	from heap import Heap
+# if HIER_HEAP:
+# 	# from hier_heap import Heap
+# 	from HT_heap import Heap
+# else:
+# 	from heap import Heap
 
 # TERM_EARLY = 1
 DEBUG = 0
@@ -40,14 +40,14 @@ def _explore_node(graph, S, T, min_dist, obest_bridge, \
 				add_stat(OFS.Update)
 			@if_(up_level)
 			def _():
-				if lmemb is not None:
+				if not NO_POT:
 					pot_dist_ = graph.pot_func_bidir(S, T, nid_, expand_s)
 					dist_.iadd(pot_dist_)
 				if DEBUG:
 					print_ln("add %s, %s, %s", dist_.reveal(), nid, nid_)
 				# plain dist
 				dist_p = w
-				if lmemb is not None:
+				if not NO_POT:
 					pot_dist_ = graph.pot_func_bidir_static(S, T, nid_, expand_s)
 					dist_p.iadd(pot_dist_)
 				# dist_p = regint(0)
@@ -69,7 +69,7 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 	def _():
 		add_stat(OFS.Explore)
 		levels, weights, lmemb = graph.ch[0], graph.ch[-1], graph.lmemb
-		if lmemb is not None:
+		if not NO_POT:
 			pot_dist = graph.pot_func_bidir(S, T, nid, expand_s)
 			dist.iadd(-pot_dist)
 		pq.begin_push(nid)

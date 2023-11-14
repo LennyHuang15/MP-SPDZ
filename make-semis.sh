@@ -55,7 +55,11 @@ opts=''
 # opts="--batch-size 1000"
 fin=''
 # fin="-IF Player-Data/Dijk/CAL/graph"
-run_opts="-N $NP $fin $opts"
+port=20050
+# port=10000
+pn=""
+pn="-pn $port"
+run_opts="-N $NP $pn $fin $opts"
 if [[ $hosts != '' ]]
 then
 run_opts="$run_opts > $prog.out 2>&1"

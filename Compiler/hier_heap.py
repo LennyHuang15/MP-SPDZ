@@ -1,10 +1,10 @@
 from Compiler.types import *
 from Compiler.library import if_, runtime_error_if, print_ln
 from util_heap import BaseHeap, sift_up, sift_down, heapify
-from util_mpc import copy, insertion_sort, print_stats, OFS
+from util_mpc import copy, insertion_sort, print_stats, OFS, ASSERT
 
 KEY = 0
-ASSERT = 0
+# ASSERT = 0
 DEBUG = 0
 class Heap(BaseHeap):
 	def __init__(self, cap_l, cap_h, WIDTH=2, value_type=sint):
@@ -16,6 +16,9 @@ class Heap(BaseHeap):
 		self.key_h = lambda el: self.top_l(el[0])[KEY]
 		from link_graph import MAX_DEG
 		self.dists_p = regint.Array(MAX_DEG)
+	def clear(self):
+		self.size.update(0)
+		self.size_h.update(0)
 	
 	def top_l(self, pos_st):
 		return self.arr_l[pos_st]

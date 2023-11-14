@@ -501,10 +501,12 @@ class Compiler:
 
         # transfer files
         import glob
+        ip_home = "166.111.121.55"
         hostnames = []
         ports = []
         hostnames_local = []
         destinations = []
+        connect_kwargss = []
         for host in hosts:
             split = host.split('/', maxsplit=1)
             hostname, port, hostname_local = split[0], None, None
@@ -519,18 +521,22 @@ class Compiler:
                 destinations.append(split[1])
             else:
                 destinations.append('.')
+            pwd = "lenny"
+            if hostname.split('@')[1] != ip_home:
+                pwd = "lennyhuang15"
+            connect_kwargs={
+                "disabled_algorithms": {
+                    "pubkeys": ["rsa-sha2-256", "rsa-sha2-512"],
+                    "keys": ["rsa-sha2-256", "rsa-sha2-512"],
+                },
+                "password": pwd
+            }
+            connect_kwargss.append(connect_kwargs)
         # print("hosts: ", hostnames)
         # print("ports: ", ports)
         # print("hostnames: ", hostnames)
-        connect_kwargs={
-            "disabled_algorithms": {
-                "pubkeys": ["rsa-sha2-256", "rsa-sha2-512"],
-                "keys": ["rsa-sha2-256", "rsa-sha2-512"],
-            },
-            "password": "lenny"
-        }
         connections = [
-            Connection(hostname, port=ports[i], connect_kwargs=connect_kwargs) 
+            Connection(hostname, port=ports[i], connect_kwargs=connect_kwargss[i]) 
             for i, hostname in enumerate(hostnames)
         ]
         print("Setting up players...")
@@ -550,13 +556,14 @@ class Compiler:
             for filename in glob.glob(
                     "Programs/Bytecode/%s-*.bc" % self.prog.name):
                 connection.put(filename, dest + "Programs/Bytecode")
-            # public inputs
-            for filename in glob.glob(
-                    "Programs/Public-Input/%s" % self.prog.name):
-                connection.put(filename, dest + "Programs/Public-Input")
-            # inputs
-            for filename in glob.glob("Player-Data/Input*-P%d-*" % i):
-                connection.put(filename, dest + "Player-Data")
+            if 1:
+                # public inputs
+                for filename in glob.glob(
+                        "Programs/Public-Input/%s" % self.prog.name):
+                    connection.put(filename, dest + "Programs/Public-Input")
+                # inputs
+                for filename in glob.glob("Player-Data/Input*-P%d-*" % i):
+                    connection.put(filename, dest + "Player-Data")
             # key and certificates
             try:
                 for suffix in ('key', 'pem'):
@@ -581,6 +588,7 @@ class Compiler:
         threads = []
         # random port numbers to avoid conflict
         port = 10000 + random.randrange(40000)
+        port = 20050
         party0 = hostnames_local[0]
         if party0 is None:
             party0 = hostnames[0]
@@ -589,10 +597,27 @@ class Compiler:
         # print("party0", party0)
         NP = len(connections)
         for i in range(NP):
-            run = lambda i: connections[i].run(
-                "cd %s; ./%s -N %d -p %d %s -h %s -pn %d %s" % \
-                (destinations[i], vm, NP, i,
-                 self.prog.name, party0, port, ' '.join(args)))
+            def run(i):
+                party0_ = party0
+                host_ip = hostnames[i].split('@')[1]
+                # print("host_ip", host_ip)
+                if host_ip != ip_home:
+                    party0_ = ip_home
+                my_port = ""
+                if host_ip == "101.6.96.160":
+                    my_port = "-mp 30001"
+                # run
+                cmd_cd = "cd %s; " % destinations[i]
+                cmd_run = "./%s -N %d -p %d %s -h %s -pn %d %s %s" % \
+                    (vm, NP, i, self.prog.name, party0_, port, my_port, ' '.join(args))
+                cmd = cmd_cd + "nohup " + cmd_run
+                print(cmd)
+                connections[i].run(cmd)
+            # run = lambda i: connections[i].run(
+            #     # "cd %s; ./%s -N %d -p %d %s -h %s -pn %d %s" % \
+            #     "cd %s; nohup ./%s -N %d -p %d %s -h %s -pn %d %s" % \
+            #     (destinations[i], vm, NP, i,
+            #      self.prog.name, party0_, port, ' '.join(args)))
             threads.append(threading.Thread(target=run, args=(i,)))
         for thread in threads:
             thread.start()

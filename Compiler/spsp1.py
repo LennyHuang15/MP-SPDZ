@@ -2,7 +2,7 @@ from Compiler.types import *
 from Compiler.library import print_ln, if_, if_e, else_, print_ln_if, \
 	for_range, for_range_opt, do_while, while_do, break_loop
 from util_mpc import *
-from link_graph import Graph
+from link_graph import Graph, NO_POT
 from heap import Heap
 
 # Bi-dir + landmark embedding
@@ -22,7 +22,7 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 	def _():
 		add_stat(OFS.Explore)
 		weights, lmemb = graph.weights, graph.lmemb
-		if lmemb is not None:
+		if not NO_POT:
 			pot_dist = graph.pot_func_bidir(S, T, nid, expand_s)
 			dist.iadd(-pot_dist)
 		exploreds[nid], dists[nid] = pre_nid, dist
@@ -45,7 +45,7 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 					maybe_set(obest_bridge[1 - expand_s], to_update, nid)
 					maybe_set(obest_bridge[expand_s], to_update, nid_)
 					add_stat(OFS.Update)
-				if lmemb is not None:
+				if not NO_POT:
 					pot_dist = graph.pot_func_bidir(S, T, nid_, expand_s)
 					dist_.iadd(pot_dist)
 				pq.push(sint_tuple(dist_, nid, nid_))

@@ -10,6 +10,7 @@ USE_LM = 0
 DYN_POT = 1
 
 HIER_HEAP = 1
+TOURNAMENT_TREE = 1
 
 # ASSERT = 1
 DEBUG = 0
@@ -120,7 +121,10 @@ class Graph(object):
 		# heaps for queries
 		E_ = E_new if E_new is not None and E_new > 0 else NE
 		if HIER_HEAP:
-			from HT_heap import Heap
+			if TOURNAMENT_TREE:
+				from HT_heap import Heap
+			else:
+				from hier_heap import Heap
 			qs, qt = Heap(E_, NN, 3), Heap(E_, NN, 3)
 		else:
 			from heap import Heap
@@ -336,7 +340,9 @@ class Graph(object):
 		else:
 			return self._dist_est_static_sp(S, T, from_S)
 	def dist_est_dyn(self, S, T, p, from_S=None):
-		if USE_LM:
+		if NO_POT:
+			return regint(0)
+		elif USE_LM:
 			return self._dist_est_dynamic_lt(S, T, p)
 		else:
 			return self._dist_est_dynamic_sp(S, T, p, from_S)
@@ -345,8 +351,9 @@ class Graph(object):
 	# 	return self.dist_est_dyn(S, T, from_S)
 	
 	def pot_func_bidir(self, S, T, v, is_for):
-		if self.lmemb is None:
-			return 0
+		# if self.lmemb is None:
+		if NO_POT:
+			return regint(0)
 		elif DYN_POT:
 			return self.pot_func_bidir_dyn(S, T, v, is_for)
 		else:
