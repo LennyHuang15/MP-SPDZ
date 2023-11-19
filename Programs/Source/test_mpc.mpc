@@ -1,16 +1,8 @@
-## test bit_or
-a, b = regint(1), 100
-c = a < b
-d = 1 == 2
-d = regint(d)
-e = c.bit_or(d)
-print_ln("%s, %s, %s, %s, %s", a, b, c, d, e)
-@if_e(e)
-def _():
-	print_ln("1")
-@else_
-def _():
-	print_ln("2")
+## test for_range
+@for_range(10 - 1, -1, -1)
+def _(i):
+	print_ln("%s", i)
+	i.iadd(-1)
 
 ## test sub-tensor
 # a = regint.Tensor([10, 2])

@@ -2,7 +2,7 @@
 
 prog=test_dijk
 # prog=build_ch
-# prog=test_hashmap
+prog=test_mpc
 
 # city="BJ"
 fn_cin="./Programs/Public-Input/graph/compile.in"
@@ -13,7 +13,7 @@ read NP <&6
 # NP=4
 
 hosts=""
-hosts="-HHOSTS_"
+# hosts="-HHOSTS_"
 head -$NP HOSTS > HOSTS_
 
 other=''
