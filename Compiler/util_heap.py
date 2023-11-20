@@ -12,7 +12,7 @@ class BaseHeap(object):
 		self.size.update(0)
 	def begin_push(self, src):
 		self.st_cmp = get_stat(OFS.Cmp)
-	def end_push(self):
+	def end_push(self, dist_p=regint(0)):
 		en_cmp = get_stat(OFS.Cmp)
 		add_stat(OFS.CmpPush, en_cmp - self.st_cmp)
 	def begin_pop(self):

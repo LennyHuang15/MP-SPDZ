@@ -5,6 +5,7 @@ from Compiler.library import runtime_error_if, print_ln, print_str, \
 from util_heap import BaseHeap
 from util_mpc import copy, print_arr, add_stat, get_stat, OFS, \
 	ASSERT, DATA_BOUND
+from util_T_heap import *
 from heap import Heap as HeapFlat
 from link_graph import MAX_DEG
 from stack import Stack
@@ -17,13 +18,10 @@ PUSH_PARALLEL = 0
 MULTI_THREAD = 2
 def key_l(el):
 	return el[0]
-def dist2w(d):
-	return 1
+# def dist2w(d):
+# 	return 1
 	# return DATA_BOUND / (d**1)
 
-from enum import IntEnum
-FIELDS = IntEnum('FIELDS', \
-	('LIDX', 'RIDX', 'WID', 'LID', 'R_WIN', 'W'), start=0)
 class Heap(BaseHeap):
 	def __init__(self, cap_l, cap_h, WIDTH=2, value_type=sint):
 		self.cap_l, self.cap_h = regint(cap_l), regint(cap_h)
@@ -32,6 +30,7 @@ class Heap(BaseHeap):
 		self.tours = regint.Tensor([cap_l * 2, len(FIELDS)])
 		self.size_tour = regint(0)
 
+		self.key_idx = lambda idx: key_l(self.arr_l[idx])# idx_l -> w
 		self.key_h = lambda tidx: key_l(self.top_l(tidx))
 		self.key_hfm = lambda tidx: self.tours[tidx][FIELDS.W]
 		self.arr_h = HeapFlat(cap_h, value_type=regint, \
@@ -64,11 +63,11 @@ class Heap(BaseHeap):
 		if ASSERT:
 			runtime_error_if(size_l >= self.cap_l, "push %s >= %s", size_l, self.cap_l)
 		arr_l[size_l] = entry
-		tours[size_t] = (-1, -1, size_l, size_l, -1, dist2w(dist_p))
+		tours[size_t] = (-1, -1, size_l, size_l, -1, dist_p)
 		hfm_queue.push(size_t)
 		for x in [size, size_l, size_t]:
 			x.iadd(1)
-	def end_push(self):
+	def end_push(self, dist_p=None):
 		if PUSH_PARALLEL:
 			self._end_push_parallel()
 		else:
@@ -258,10 +257,7 @@ class Heap(BaseHeap):
 			@if_(i % 5 == 0)
 			def _():
 				print_str("\n%s: ", i)
-			tour = copy(tours[i])
-			for idx in [FIELDS.WID, FIELDS.LID]:
-				tour[idx] = key_l(arr_l[tour[idx]]).reveal()
-			print_str("%s, ", tour)
+			print_tour(tours[i], key=self.key_idx)
 		print_ln("")
 	def print(self):
 		self.arr_h.print(name="arr_h")

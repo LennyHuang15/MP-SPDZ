@@ -4,21 +4,16 @@ from Compiler.library import print_ln, print_ln_if, if_, if_e, else_, \
 from util_mpc import *
 from link_graph import Graph, HIER_HEAP, NO_POT
 
-# HIER_HEAP = 1
-# if HIER_HEAP:
-# 	# from hier_heap import Heap
-# 	from HT_heap import Heap
-# else:
-# 	from heap import Heap
-
-# TERM_EARLY = 1
 DEBUG = 0
 # ASSERT = 1
+def dist2w(d, p_st):
+	return 1
+	# return (p_st * 128 / d) ** 2
 
 def _explore_node(graph, S, T, min_dist, obest_bridge, \
 		expand_s, pq, exploreds, dists, exploreds_op, dists_op, \
 		nid, edge, dist):
-	levels, weights, lmemb = graph.ch[0], graph.ch[-1], graph.lmemb
+	levels, weights, p_st = graph.ch[0], graph.ch[-1], graph.dist_ST
 	nid_, _, w, wid = edge
 	if DEBUG:
 		print_ln("exploring %s,%s,%s", nid_, w, dist.reveal())
@@ -51,7 +46,7 @@ def _explore_node(graph, S, T, min_dist, obest_bridge, \
 					pot_dist_ = graph.pot_func_bidir_static(S, T, nid_, expand_s)
 					dist_p.iadd(pot_dist_)
 				# dist_p = regint(0)
-				pq.push(sint_tuple(dist_, nid, nid_), dist_p)
+				pq.push(sint_tuple(dist_, nid, nid_), dist2w(dist_p, p_st))
 				add_stat(OFS.Push)
 
 def _expand_side(graph, S, T, min_dist, obest_bridge, \
@@ -68,10 +63,11 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 	@if_(exploreds[nid] < 0) # to explore
 	def _():
 		add_stat(OFS.Explore)
-		levels, weights, lmemb = graph.ch[0], graph.ch[-1], graph.lmemb
+		levels, weights, p_st = graph.ch[0], graph.ch[-1], graph.dist_ST
 		if not NO_POT:
 			pot_dist = graph.pot_func_bidir(S, T, nid, expand_s)
 			dist.iadd(-pot_dist)
+		size_q = regint(pq.size)
 		pq.begin_push(nid)
 		exploreds[nid], dists[nid] = pre_nid, dist
 		@for_range(link_index[nid], link_index[nid+1])
@@ -79,6 +75,13 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 			_explore_node(graph, S, T, min_dist, obest_bridge, \
 				expand_s, pq, exploreds, dists, exploreds_op, dists_op, \
 				nid, link_edges[eid], dist)
+		# algs = [S, nid] if expand_s else [nid, T]
+		# dist_p = graph.dist_est_static(*algs, expand_s)
+		# if not NO_POT:
+		# 	pot_dist_ = graph.pot_func_bidir_static(S, T, nid, expand_s)
+		# 	dist_p.iadd(pot_dist_)
+		# pq.end_push(dist2w(dist_p, p_st))
+		# pq.end_push(pq.size - size_q)
 		pq.end_push()
 	
 def SPSP(graph, S, T):
@@ -93,17 +96,11 @@ def SPSP(graph, S, T):
 	levels, link_index_for, link_edges_for, \
 		link_index_rev, link_edges_rev, weights = graph.ch
 
-	# exploreds_s, dists_s = regint.Array(N), sint.Array(N)
-	# exploreds_t, dists_t = regint.Array(N), sint.Array(N)
 	exploreds_s, dists_s = graph.exploreds_s, graph.dists_s
 	exploreds_t, dists_t = graph.exploreds_t, graph.dists_t
 	for vec in [exploreds_s, dists_s, exploreds_t, dists_t]:
 		vec.assign_all(-1)
 	p_st = graph.pot_func_bidir(S, T, S, True)
-	# if HIER_HEAP:
-	# 	qs, qt = Heap(E_new, N, 3), Heap(E_new, N, 3)
-	# else:
-	# 	qs, qt = Heap(E_new, 3), Heap(E_new, 3)
 	qs, qt = graph.qs, graph.qt
 	qs.clear()
 	qt.clear()

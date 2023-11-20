@@ -2,7 +2,7 @@
 
 prog=test_dijk
 # prog=build_ch
-prog=test_mpc
+# prog=test_HTMheap
 
 # city="BJ"
 fn_cin="./Programs/Public-Input/graph/compile.in"

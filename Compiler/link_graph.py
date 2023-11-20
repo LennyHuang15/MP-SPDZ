@@ -10,6 +10,7 @@ USE_LM = 0
 DYN_POT = 1
 
 HIER_HEAP = 1
+MERGE_HEAP = 1
 TOURNAMENT_TREE = 1
 
 # ASSERT = 1
@@ -121,7 +122,9 @@ class Graph(object):
 		# heaps for queries
 		E_ = E_new if E_new is not None and E_new > 0 else NE
 		if HIER_HEAP:
-			if TOURNAMENT_TREE:
+			if MERGE_HEAP:
+				from HTM_heap import Heap
+			elif TOURNAMENT_TREE:
 				from HT_heap import Heap
 			else:
 				from hier_heap import Heap

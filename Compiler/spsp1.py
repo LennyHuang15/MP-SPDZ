@@ -64,8 +64,6 @@ def SPSP(graph, S, T):
 	link_index_for, link_edges_for = graph.link_index, graph.link_edges
 	link_index_rev, link_edges_rev = graph.link_index_rev, graph.link_edges_rev
 
-	# exploreds_s, dists_s = regint.Array(N), sint.Array(N)
-	# exploreds_t, dists_t = regint.Array(N), sint.Array(N)
 	exploreds_s, dists_s = graph.exploreds_s, graph.dists_s
 	exploreds_t, dists_t = graph.exploreds_t, graph.dists_t
 	for vec in [exploreds_s, dists_s, exploreds_t, dists_t]:

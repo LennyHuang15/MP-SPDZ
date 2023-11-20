@@ -6,7 +6,9 @@ from util_heap import BaseHeap
 from util_mpc import copy, print_arr, add_stat, get_stat, OFS, \
 	ASSERT, DATA_BOUND
 from util_T_heap import *
+from util_T_heap import _merge
 from heap import Heap as HeapFlat
+from HT_heap_h import Heap as HeapHier
 from link_graph import MAX_DEG
 from stack import Stack
 from util import max
@@ -16,11 +18,9 @@ DEBUG = 0
 MAX_PATH = 128
 PUSH_PARALLEL = 0
 MULTI_THREAD = 2
+fac_merge, fac_merge_div = 2, 1
 def key_l(el):
 	return el[0]
-def dist2w(d):
-	return 1
-	# return DATA_BOUND / (d**1)
 
 class Heap(BaseHeap):
 	def __init__(self, cap_l, cap_h, WIDTH=2, value_type=sint):
@@ -30,11 +30,11 @@ class Heap(BaseHeap):
 		self.tours = regint.Tensor([cap_l * 2, len(FIELDS)])
 		self.size_tour = regint(0)
 
-		self.key_h = lambda tidx: key_l(self.top_l(tidx))
-		self.key_hfm = lambda tidx: self.tours[tidx][FIELDS.W]
-		self.arr_h = HeapFlat(cap_h, value_type=regint, \
-			key=self.key_h)
+		self.key_idx = lambda idx: key_l(self.arr_l[idx])# idx_l -> w
+		self.arr_h = HeapHier(cap_h, self.key_idx, self.tours, \
+			self._merge_l, self, fac=fac_merge, fac_div=fac_merge_div)
 
+		self.key_hfm = lambda tidx: self.tours[tidx][FIELDS.W]
 		self.hfm_queue = HeapFlat(MAX_DEG, value_type=regint, \
 			key=self.key_hfm)
 		self.path = Stack(MAX_PATH)
@@ -44,6 +44,12 @@ class Heap(BaseHeap):
 		self.size_tour.update(0)
 		self.arr_h.clear()
 	
+	def _merge_l(self, tidx1, tidx2):
+		tours, size_t = self.tours, self.size_tour
+		tours[size_t] = _merge(self.key_idx, \
+			tours[tidx1], tours[tidx2], tidx1, tidx2)
+		size_t.iadd(1)
+		return size_t - 1
 	def top_l(self, tidx):
 		if ASSERT:
 			runtime_error_if(self.size <= 0, "top_l")
@@ -62,100 +68,17 @@ class Heap(BaseHeap):
 		if ASSERT:
 			runtime_error_if(size_l >= self.cap_l, "push %s >= %s", size_l, self.cap_l)
 		arr_l[size_l] = entry
-		tours[size_t] = (-1, -1, size_l, size_l, -1, dist2w(dist_p))
+		tours[size_t] = (-1, -1, size_l, size_l, -1, dist_p)
 		hfm_queue.push(size_t)
 		for x in [size, size_l, size_t]:
 			x.iadd(1)
-	def end_push(self):
+	def end_push(self, dist_p=None):
 		if PUSH_PARALLEL:
 			self._end_push_parallel()
 		else:
-			self._end_push()
+			self._end_push(dist_p)
 		super().end_push()
-	def _end_push_parallel(self):
-		arr_l, arr_h, size_t = self.arr_l, self.arr_h, self.size_tour
-		tours, hfm_queue = self.tours, self.hfm_queue
-		MAX_LEV = 128
-		arr_levs = regint.Tensor([MAX_LEV, MAX_DEG])
-		arr_levs.assign_all(-1)
-		size_levs = regint.Array(MAX_LEV)
-		size_levs.assign_all(0)
-		def real_comp(lev, i):
-			tidx_ = arr_levs[lev][i]
-			tidx1, tidx2, _, _, lev_par, _ = tours[tidx_]
-			if ASSERT:
-				runtime_error_if(lev_par != lev, "lev_par %s != %s", lev_par, lev)
-			# really compare
-			tour1, tour2 = tours[tidx1], tours[tidx2]
-			wid1, wid2 = tour1[FIELDS.WID], tour2[FIELDS.WID]
-			if ASSERT:
-				runtime_error_if(wid1 < 0, "wid1 %s", wid1)
-				runtime_error_if(wid2 < 0, "wid2 %s", wid2)
-			r_win = key_l(arr_l[wid2]) < key_l(arr_l[wid1])# sbit
-			r_win = r_win.reveal()
-			# add_stat(OFS.Cmp)
-			wid, lid = r_win.cond_swap(wid1, wid2)
-			tours[tidx_][FIELDS.WID] = wid
-			tours[tidx_][FIELDS.LID] = lid
-			tours[tidx_][FIELDS.R_WIN] = r_win
-		@if_(hfm_queue.size > 0)
-		def _():
-			# construct Huffman struct and save tours into levels
-			# not really compare
-			if DEBUG:
-				print_ln("HT to build %s %s %s", self.size_l, size_t, hfm_queue.size)
-			@while_do(lambda: hfm_queue.size >= 2)
-			def _():
-				tidx1, tidx2 = hfm_queue.pop(), hfm_queue.pop()
-				tour1, tour2 = tours[tidx1], tours[tidx2]
-				lev1, lev2 = tour1[FIELDS.R_WIN], tour2[FIELDS.R_WIN]
-				lev_par = max(lev1, lev2) + 1
-				d1, d2 = tour1[FIELDS.W], tour2[FIELDS.W]
-				tours[size_t] = (tidx1, tidx2, -1, -1, lev_par, d1 + d2)
-				hfm_queue.push(size_t)
-				if DEBUG:
-					print_ln("HT-push %s,%s->%s", lev1, lev2, lev_par)
-				### save into associating level
-				if ASSERT:
-					runtime_error_if(lev_par >= MAX_LEV, "lev_par %s", lev_par)
-				size_lev = size_levs[lev_par]
-				if ASSERT:
-					runtime_error_if(size_lev >= MAX_DEG, "size_levs %s", size_lev)
-				arr_levs[lev_par][size_lev] = size_t
-				size_levs[lev_par] += 1
-				if DEBUG:
-					print_arr(arr_levs[lev_par], size_lev, name="-L")
-				###
-				size_t.iadd(1)
-			tidx = hfm_queue.pop()
-			if DEBUG:
-				print_ln("HT built %s %s", self.size_l ,size_t)
-			# batch compare
-			@for_range_opt(MAX_LEV)
-			def _(lev_):
-				size_lev, lev = size_levs[lev_], MemValue(lev_)
-				@if_(size_lev == 0)
-				def _():
-					break_loop()
-				SINGLE_THREAD = regint(MULTI_THREAD == 1)
-				if DEBUG:
-					print_ln("comp %s %s", lev_, size_lev)
-					print_arr(arr_levs[lev], size_lev, name="L")
-					print_ln("%s %s", size_lev < MULTI_THREAD, SINGLE_THREAD)
-				@if_e((size_lev < MULTI_THREAD * 4).bit_or(SINGLE_THREAD))
-				def _():
-					@for_range_opt(size_lev)
-					def _(i):
-						real_comp(lev, i)
-				@else_
-				def _():
-					@for_range_opt_multithread(MULTI_THREAD, size_lev)
-					# @for_range(size_lev)
-					def _(i):
-						real_comp(lev, i)
-				add_stat(OFS.Cmp, size_lev)
-			arr_h.push(tidx)
-	def _end_push(self):
+	def _end_push(self, dist_p=None):
 		arr_l, arr_h, size_t = self.arr_l, self.arr_h, self.size_tour
 		tours, hfm_queue = self.tours, self.hfm_queue
 		if DEBUG:
@@ -167,16 +90,13 @@ class Heap(BaseHeap):
 			def _():
 				tidx1, tidx2 = hfm_queue.pop(), hfm_queue.pop()
 				tour1, tour2 = tours[tidx1], tours[tidx2]
-				wid1, wid2 = tour1[FIELDS.WID], tour2[FIELDS.WID]
-				r_win = key_l(arr_l[wid2]) < key_l(arr_l[wid1])# sbit
-				r_win = r_win.reveal()
-				add_stat(OFS.Cmp)
-				wid, lid = r_win.cond_swap(wid1, wid2)
-				d1, d2 = tour1[FIELDS.W], tour2[FIELDS.W]
-				tours[size_t] = (tidx1, tidx2, wid, lid, r_win, d1 + d2)
+				tours[size_t] = _merge(self.key_idx, \
+					tour1, tour2, tidx1, tidx2)
 				hfm_queue.push(size_t)
 				size_t.iadd(1)
 			tidx = hfm_queue.pop()
+			if dist_p is not None:
+				tours[tidx][FIELDS.W] = dist_p
 			arr_h.push(tidx)
 		# print_ln("push arr_h[%s]", arr_h.size)
 
@@ -198,13 +118,13 @@ class Heap(BaseHeap):
 		# delete the winner
 		path.pop()
 		@if_e(path.size > 0)
-		def _():
-			# replace its par with its sib
+		def _():# replace its par with its sib
 			tidx_par = path.pop()
 			r_win = tours[tidx_par][FIELDS.R_WIN]
 			tidx_sib = tours[tidx_par][1 - r_win]
 			tours[tidx_par] = tours[tidx_sib]
 			wid = regint(tours[tidx_par][FIELDS.WID])
+			# replay
 			@while_do(lambda: path.size > 0)
 			def _():
 				tidx = path.pop()
@@ -256,13 +176,11 @@ class Heap(BaseHeap):
 			@if_(i % 5 == 0)
 			def _():
 				print_str("\n%s: ", i)
-			tour = copy(tours[i])
-			for idx in [FIELDS.WID, FIELDS.LID]:
-				tour[idx] = key_l(arr_l[tour[idx]]).reveal()
-			print_str("%s, ", tour)
+			print_tour(tours[i], key=self.key_idx)
 		print_ln("")
 	def print(self):
 		self.arr_h.print(name="arr_h")
 		print_arr(self.arr_l, self.size_l, key=key_l, name="arr_l")
 		# print_ln("arr_h: %s", self.arr_h.arr)
 		self._print_tours()
+		print_ln("")

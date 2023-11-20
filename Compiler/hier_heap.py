@@ -39,7 +39,7 @@ class Heap(BaseHeap):
 		arr_l[pos_st + size_l], self.dists_p[size_l] = entry, dist_p
 		size_l.iadd(1)
 		self.size.iadd(1)
-	def end_push(self):
+	def end_push(self, dist_p=None):
 		arr_l, pos_st, size_l = self.arr_l, self.cur_pos_st, self.cur_size_l
 		@if_(size_l > 0)
 		def _():
