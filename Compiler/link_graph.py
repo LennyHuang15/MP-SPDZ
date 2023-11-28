@@ -8,6 +8,7 @@ from util_mpc import N_PARTY, ASSERT, \
 NO_POT = 0
 USE_LM = 0
 DYN_POT = 1
+ALT_ALL = 0
 
 HIER_HEAP = 1
 MERGE_HEAP = 1
@@ -115,7 +116,22 @@ class Graph(object):
 			self.chs_r = (links_rev, pws_r, ows_r, poss_r)
 		# dynamic LT embedding
 		if dim is not None and dim > 0:
-			_, self.parties_emb = _load_array_parties(NN * dim)
+			parties_lm, self.parties_emb = _load_array_parties(NN * dim)
+			if ALT_ALL:
+				lmemb = sint.Tensor([NN, dim])
+				lmemb.assign_all(0)
+				@for_range(N_PARTY)
+				def _(p):
+					@for_range(NN)
+					def _(nid):
+						@for_range(dim)
+						def _(d):
+							lmemb[nid][d] += parties_lm[p][nid*dim + d]
+				# lmemb.assign(parties_lm[0][:])
+				# @for_range(1, N_PARTY)
+				# def _(p):
+				# 	lmemb[:] += parties_lm[p][:]
+				self.lmemb_s = lmemb
 		# arrs for queries
 		self.exploreds_s, self.dists_s = regint.Array(NN), sint.Array(NN)
 		self.exploreds_t, self.dists_t = regint.Array(NN), sint.Array(NN)
@@ -327,6 +343,15 @@ class Graph(object):
 		dist = emb_p[T*dim + lmid] - emb_p[S*dim + lmid]
 		return dist
 		# return max(dist, 0)
+	def _dist_est_all_lt(self, S, T):
+		max_dist = max(self.lmemb_s[T][:] - self.lmemb_s[S][:])
+		# dim, lmemb_s = self.dim, self.lmemb_s
+		# dists = sint.Array(dim)
+		# @for_range(dim)
+		# def _(d):
+		# 	dists[d] = lmemb_s[T*dim + d] - lmemb_s[S*dim + d]
+		# max_dist = max(dists)
+		return max_dist.max(0)
 
 	def _dist_est_static_sp(self, S, T, from_S):
 		idx, dst = (0, T) if from_S else (1, S)
@@ -358,9 +383,18 @@ class Graph(object):
 		if NO_POT:
 			return regint(0)
 		elif DYN_POT:
-			return self.pot_func_bidir_dyn(S, T, v, is_for)
+			if ALT_ALL:
+				return self.pot_func_bidir_altall(S, T, v, is_for)
+			else:
+				return self.pot_func_bidir_dyn(S, T, v, is_for)
 		else:
 			return self.pot_func_bidir_static(S, T, v, is_for)
+	def pot_func_bidir_altall(self, S, T, v, is_for):
+		pi_f = self._dist_est_all_lt(v, T)
+		pi_r = self._dist_est_all_lt(S, v)
+		pi_st = self.dist_ST # self.dist_est(S, T)
+		dp = (pi_f - pi_r) if is_for else (pi_r - pi_f)
+		return (dp + pi_st) * N_PARTY / 2
 	def pot_func_bidir_static(self, S, T, v, is_for):
 		pi_f = self.dist_est_static(v, T, False)
 		pi_r = self.dist_est_static(S, v, True)

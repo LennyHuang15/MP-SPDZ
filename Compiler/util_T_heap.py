@@ -10,8 +10,8 @@ FIELDS = IntEnum('FIELDS', \
 def _merge(key, tour1, tour2, tidx1=-1, tidx2=-1):
 	wid1, wid2 = tour1[FIELDS.WID], tour2[FIELDS.WID]
 	if ASSERT:
-		runtime_error_if(wid1 < 0, "wid1 %s", wid1)
-		runtime_error_if(wid2 < 0, "wid2 %s", wid2)
+		runtime_error_if(wid1 < 0, "merge1 %s", wid1)
+		runtime_error_if(wid2 < 0, "merge2 %s", wid2)
 	r_win = key(wid2) < key(wid1)# sbit
 	r_win = r_win.reveal()
 	add_stat(OFS.Cmp)

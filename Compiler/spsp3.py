@@ -75,14 +75,14 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 			_explore_node(graph, S, T, min_dist, obest_bridge, \
 				expand_s, pq, exploreds, dists, exploreds_op, dists_op, \
 				nid, link_edges[eid], dist)
-		# algs = [S, nid] if expand_s else [nid, T]
-		# dist_p = graph.dist_est_static(*algs, expand_s)
-		# if not NO_POT:
-		# 	pot_dist_ = graph.pot_func_bidir_static(S, T, nid, expand_s)
-		# 	dist_p.iadd(pot_dist_)
-		# pq.end_push(dist2w(dist_p, p_st))
+		algs = [S, nid] if expand_s else [nid, T]
+		dist_p = graph.dist_est_static(*algs, expand_s)
+		if not NO_POT:
+			pot_dist_ = graph.pot_func_bidir_static(S, T, nid, expand_s)
+			dist_p.iadd(pot_dist_)
+		pq.end_push(dist2w(dist_p, p_st) * (pq.size - size_q))
 		# pq.end_push(pq.size - size_q)
-		pq.end_push()
+		# pq.end_push()
 	
 def SPSP(graph, S, T):
 	if DEBUG:
