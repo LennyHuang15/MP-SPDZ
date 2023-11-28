@@ -22,12 +22,12 @@ def _explore_next_virt(poss, link_index, nid, dists, \
 			explored_op = exploreds_op[nid_] >= 0
 			@if_(explored_op.bit_or(up_level))
 			def _():
-				add_stat(OFS_SEARCH)
+				add_stat(OFS.Search)
 				dist_ = dists[nid] + dist_p
 				if DEBUG:
 					print_ln("add virt: %s,%s,%s", -nid-1, nid_, dist_.reveal())
 				pq.push(sint_tuple(dist_, -nid-1, nid_))
-				add_stat(OFS_PUSH)
+				add_stat(OFS.Push)
 				pos.iadd(1)
 				break_loop()
 		pos.iadd(1)
@@ -41,7 +41,7 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 	if DEBUG:
 		c = 'S' if expand_s else 'T'
 		print_ln("top%s[%s]: %s, %s, %s", c, exploreds[nid]>=0, pre_nid, nid, dist.reveal())
-	add_stat(OFS_EXPLORE)
+	add_stat(OFS.Explore)
 	@if_(exploreds[nid] < 0) # to explore
 	def _():
 		levels, weights, lmemb = graph.ch[0], graph.ch[-1], graph.lmemb
@@ -77,7 +77,7 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 					maybe_set(min_dist, to_update, bi_dist_)
 					maybe_set(obest_bridge[1 - expand_s], to_update, nid)
 					maybe_set(obest_bridge[expand_s], to_update, nid_)
-					add_stat(OFS_UPDATE)
+					add_stat(OFS.Update)
 				@if_(up_level)
 				def _():
 					if lmemb is not None:
@@ -86,7 +86,7 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 					if DEBUG:
 						print_ln("add real: %s,%s,%s", nid, nid_, dist_.reveal())
 					pq.push(sint_tuple(dist_, nid, nid_))
-					add_stat(OFS_PUSH)
+					add_stat(OFS.Push)
 		@else_ # pre_nid >= 0
 		def _():
 			if lmemb is not None:
@@ -104,7 +104,7 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 					pot_dist_ = graph.pot_func_bidir_static(S, T, nid_, expand_s)
 					dist_p.iadd(pot_dist_)
 				links[eid] = (nid_, -1, dist_p, wid)
-			insertion_sort_inplace(links, st, en, OFFSET)
+			insertion_sort(links, st, en, OFFSET=OFFSET)
 			if DEBUG:
 				print_ln("sorted links: ")
 				@for_range(st, en)
@@ -116,7 +116,8 @@ def _expand_side(graph, S, T, min_dist, obest_bridge, \
 			links, exploreds, exploreds_op, levels, pq)
 	
 def SPSP(graph, S, T):
-	print_ln("SPSP4: %s -> %s", S, T)
+	if DEBUG:
+		print_ln("SPSP4: %s -> %s", S, T)
 	@if_(S == T)
 	def _():
 		ans, ans_dist = regint.Array(1), sint.Array(1)

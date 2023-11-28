@@ -496,31 +496,59 @@ class Compiler:
         # test availability before compilation
         from fabric import Connection
         import subprocess
-        print("Creating static binary for virtual machine...")
-        subprocess.run(["make", "static/%s" % vm], check=True, cwd=self.root)
+        # print("Creating static binary for virtual machine...")
+        # subprocess.run(["make", "static/%s" % vm], check=True, cwd=self.root)
 
         # transfer files
         import glob
+        ip_home = "166.111.121.55"
         hostnames = []
+        ports = []
+        hostnames_local = []
         destinations = []
+        connect_kwargss = []
         for host in hosts:
             split = host.split('/', maxsplit=1)
-            hostnames.append(split[0])
+            hostname, port, hostname_local = split[0], None, None
+            if '|' in hostname:
+                hostname, hostname_local = hostname.split('|')
+            if ':' in hostname:
+                hostname, port = hostname.split(':')
+            hostnames.append(hostname)
+            ports.append(port)
+            hostnames_local.append(hostname_local)
             if len(split) > 1:
                 destinations.append(split[1])
             else:
                 destinations.append('.')
-        connections = [Connection(hostname) for hostname in hostnames]
+            pwd = "lenny"
+            if hostname.split('@')[1] != ip_home:
+                pwd = "lennyhuang15"
+            connect_kwargs={
+                "disabled_algorithms": {
+                    "pubkeys": ["rsa-sha2-256", "rsa-sha2-512"],
+                    "keys": ["rsa-sha2-256", "rsa-sha2-512"],
+                },
+                "password": pwd
+            }
+            connect_kwargss.append(connect_kwargs)
+        # print("hosts: ", hostnames)
+        # print("ports: ", ports)
+        # print("hostnames: ", hostnames)
+        connections = [
+            Connection(hostname, port=ports[i], connect_kwargs=connect_kwargss[i]) 
+            for i, hostname in enumerate(hostnames)
+        ]
         print("Setting up players...")
 
         def run(i):
             dest = destinations[i]
             connection = connections[i]
             connection.run(
-                "mkdir -p %s/{Player-Data,Programs/{Bytecode,Schedules}} " % \
+                "mkdir -p %s/{Player-Data,Programs/{Bytecode,Schedules,Public-Input}} " % \
                 dest)
             # executable
-            connection.put("%s/static/%s" % (self.root, vm), dest)
+            # connection.put("%s/static/%s" % (self.root, vm), dest)
             # program
             dest += "/"
             connection.put("Programs/Schedules/%s.sch" % self.prog.name,
@@ -528,15 +556,23 @@ class Compiler:
             for filename in glob.glob(
                     "Programs/Bytecode/%s-*.bc" % self.prog.name):
                 connection.put(filename, dest + "Programs/Bytecode")
-            # inputs
-            for filename in glob.glob("Player-Data/Input*-P%d-*" % i):
-                connection.put(filename, dest + "Player-Data")
+            if 1:
+                # public inputs
+                for filename in glob.glob(
+                        "Programs/Public-Input/%s" % self.prog.name):
+                    connection.put(filename, dest + "Programs/Public-Input")
+                # inputs
+                for filename in glob.glob("Player-Data/Input*-P%d-*" % i):
+                    connection.put(filename, dest + "Player-Data")
             # key and certificates
-            for suffix in ('key', 'pem'):
-                connection.put("Player-Data/P%d.%s" % (i, suffix),
-                               dest + "Player-Data")
-            for filename in glob.glob("Player-Data/*.0"):
-                connection.put(filename, dest + "Player-Data")
+            try:
+                for suffix in ('key', 'pem'):
+                    connection.put("Player-Data/P%d.%s" % (i, suffix),
+                                dest + "Player-Data")
+                for filename in glob.glob("Player-Data/*.0"):
+                    connection.put(filename, dest + "Player-Data")
+            except:
+                pass
 
         import threading
         import random
@@ -552,15 +588,36 @@ class Compiler:
         threads = []
         # random port numbers to avoid conflict
         port = 10000 + random.randrange(40000)
-        if '@' in hostnames[0]:
-            party0 = hostnames[0].split('@')[1]
-        else:
+        port = 20050
+        party0 = hostnames_local[0]
+        if party0 is None:
             party0 = hostnames[0]
-        for i in range(len(connections)):
-            run = lambda i: connections[i].run(
-                "cd %s; ./%s -p %d %s -h %s -pn %d %s" % \
-                (destinations[i], vm, i, self.prog.name, party0, port,
-                 ' '.join(args)))
+        if '@' in party0:
+            party0 = party0.split('@')[1]
+        # print("party0", party0)
+        NP = len(connections)
+        for i in range(NP):
+            def run(i):
+                party0_ = party0
+                host_ip = hostnames[i].split('@')[1]
+                # print("host_ip", host_ip)
+                if host_ip != ip_home:
+                    party0_ = ip_home
+                my_port = ""
+                if host_ip == "101.6.96.160":
+                    my_port = "-mp 30001"
+                # run
+                cmd_cd = "cd %s; " % destinations[i]
+                cmd_run = "./%s -N %d -p %d %s -h %s -pn %d %s %s" % \
+                    (vm, NP, i, self.prog.name, party0_, port, my_port, ' '.join(args))
+                cmd = cmd_cd + "nohup " + cmd_run
+                print(cmd)
+                connections[i].run(cmd)
+            # run = lambda i: connections[i].run(
+            #     # "cd %s; ./%s -N %d -p %d %s -h %s -pn %d %s" % \
+            #     "cd %s; nohup ./%s -N %d -p %d %s -h %s -pn %d %s" % \
+            #     (destinations[i], vm, NP, i,
+            #      self.prog.name, party0_, port, ' '.join(args)))
             threads.append(threading.Thread(target=run, args=(i,)))
         for thread in threads:
             thread.start()

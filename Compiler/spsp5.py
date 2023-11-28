@@ -71,13 +71,13 @@ def _sort_neighbors(graph, S, T, nid, expand_s, dists, dists_op, \
 				links[pos] = (nid_, dist_p, w, wid)
 				pos.iadd(1)
 	en.update(pos)
-	insertion_sort_inplace(links, st, en, OFFSET)
+	insertion_sort(links, st, en, OFFSET=OFFSET)
 	# then sort by obliv real dist
 	@for_range(st, en)
 	def _(eid):
 		nid_, dist_p, w, wid = links[eid]
 		ows[eid] = weights[wid] - w + dist_p
-	insertion_sort(links, st, en, ows, True)
+	insertion_sort(links, st, en, ws=ows)
 	if DEBUG:
 		print_ln("sorted links: ")
 		@for_range(st, en)

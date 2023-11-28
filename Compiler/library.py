@@ -1010,6 +1010,7 @@ def map_reduce(n_threads, n_parallel, n_loops, initializer, reducer, \
             return dec
     def decorator(loop_body):
         thread_rounds = MemValue.if_necessary(n_loops // n_threads)
+        # print_ln("multithread %s", thread_rounds)
         if util.is_constant(thread_rounds):
             remainder = n_loops % n_threads
         else:

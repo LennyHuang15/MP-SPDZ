@@ -1,0 +1,42 @@
+## compare heapify with one-by-one push
+import numpy as np
+from util_heap import heapify, check_heapified
+from util_mpc import print_arr, print_stats, OFS
+from heap import Heap
+
+arr_ = np.loadtxt("1.in", dtype=int, delimiter=' ')
+size = len(arr_)
+# print(size, arr_)
+
+arr = regint.Tensor([2, size])
+arr[0].assign(arr_.tolist())
+arr = arr.transpose()
+
+use_hier = 0
+key = lambda el: el[0]
+q = Heap(size, 3)
+size = regint(size) 
+print_arr(arr, size, 0, key, 'before')
+if use_hier:
+	heapify(arr, size, key)
+else:
+	@for_range(size)
+	def _(i):
+		q.push(arr[i])
+	arr = q.arr
+print_arr(arr, size, 0, key, 'after')
+check_heapified(arr, size, key)
+print_stats(OFS.Cmp)
+
+## test heapify
+# a = [10, 20, 25, 6, 12, 15, 4, 16]
+# size = len(a)
+# b = range(size)
+# arr = sint.Tensor([2, size])
+# arr[0].assign(a)
+# arr[0] = -arr[0]
+# arr[1].assign(b)
+# arr = arr.transpose()
+# heapify(arr, regint(size), 2, lambda el: el[0])
+# arr = arr.transpose()
+# print_ln("%s, %s", arr[0].reveal(), arr[1].reveal())

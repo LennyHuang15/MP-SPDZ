@@ -30,7 +30,8 @@ void set_up_client_socket(int& mysocket,const char* hostname,int Portnum)
 
    int erp;
    for (int i = 0; i < 60; i++)
-     { erp=getaddrinfo (hostname, NULL, &hints, &ai);
+     {
+        erp=getaddrinfo (hostname, NULL, &hints, &ai);
        if (erp == 0)
          { break; }
        else

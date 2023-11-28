@@ -1,0 +1,9 @@
+from link_graph import Graph
+from util_mpc import N_PARTY, city, N, E
+# prog.use_edabit(True)
+
+print_ln("Build CH on %s" % (city))
+graph = Graph()
+graph.load(N, E)
+
+graph.build_ch(merging=1, revealing=1)

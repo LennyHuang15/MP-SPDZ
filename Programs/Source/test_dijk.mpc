@@ -1,58 +1,64 @@
 from link_graph import Graph
 from Compiler.program import Program
 from Compiler.library import public_input
+import numpy as np
 from util_mpc import *
-
 prog = Program.prog
-# prog.use_edabit(True)
-print_ln("test_dijk over %d parties" % N_PARTY)
+prog.use_edabit(True)
 
-city = "CAL"
-dir_pub = prog.programs_dir + "/Public-Input/"
-dir_city = dir_pub + "graph/%s/" % (city)
-fn_cin = dir_city + "compile.in"
+print_ln("test_dijk on %s" % city)
 
-# N, E, dim, E_new, S, T = [None for _ in range(4)]
+BATCH_QUERY, PRINT_RESULT = 1, 0
 with open(fn_cin) as fp:
+	N_PARTY = read_ints(fp)[0]
+	city = fp.readline()[:-1]
 	N, E = read_ints(fp)[:2]
 	N_, dim = read_ints(fp)[:2]
 	assert N_ == N
 	N_, E_new = read_ints(fp)[:2]
 	assert N_ == N
-	S, T = read_ints(fp)[:2]
-print(N, E, dim, E_new, S, T)
-
+	if not BATCH_QUERY:
+		S, T = read_ints(fp)[:2]
+print(N_PARTY, N, E, dim, E_new)
 graph = Graph()
-graph.load(None, N, E, dim, E_new)
-start_timer(2)
-graph._build_ST(S, T)
-stop_timer(2)
+graph.load(N, E, dim, E_new)
 
-# v = 20098
-# for p in range(N_PARTY):
-# 	dist_S = graph.dist_est_dyn(S, v, p, True)
-# 	dist_T = graph.dist_est_dyn(v, T, p, False)
-# 	print_ln_to(p, "%s[%s]: %s,%s", v, p, dist_S, dist_T)
-# dist_for = graph.pot_func_bidir_dyn(S, T, v, True).reveal()
-# dist_rev = graph.pot_func_bidir_dyn(S, T, v, False).reveal()
-# print_ln("pot_func_bidir_dyn: %s, %s", dist_for, dist_rev)
+if BATCH_QUERY:
+	fn_query = dir_city + "query.in"
+	# fn_ans = dir_city + "query.out"
+	n_query, tmp, sts = read_graph(fn_query)
+else:
+	n_query, sts = 1, np.array([[S, T]])
+assert n_query <= len(sts)
+assert (sts >= 0).all() and (sts < N).all()
+sts = sts[:n_query]
+print(sts.shape, sts[:4])
+
+# start_timer(2)
+# graph._build_ST(S, T)
+# stop_timer(2)
 
 # from dijk3 import SSSP as SP
-from spsp4 import SPSP as SP
-init_stats()
-start_timer(1)
-# ans, ans_dist, size_ans = SP(graph, S, num=100, \
-# 		static_weights=False, link_index=None, link_edges=None)
-ans, ans_dist, size_ans = SP(graph, S, T)
-stop_timer(1)
+from spsp3 import SPSP as SP
 
-n_report = 10
-ans_dist = ans_dist.reveal()
-@for_range(size_ans.min(10))
-def _(i):
-	print_ln("[%s]: %s, %s", i, ans[i], ans_dist[i])
-@if_(n_report < size_ans)
-def _():
-	last = size_ans - 1
-	print_ln("[%s]: %s, %s", last, ans[last], ans_dist[last])
-print_stats()
+for i, st in enumerate(sts):
+	S, T = [int(x) for x in st]
+	print("query[%d]: %d -> %d"%(i, S, T))
+	graph._build_ST(S, T)
+
+	init_stats()
+	start_timer(i+1)
+	ans, ans_dist, size_ans = SP(graph, S, T)
+	stop_timer(i+1)
+
+	if PRINT_RESULT:
+		n_report = 10
+		ans_dist = ans_dist.reveal()
+		@for_range(size_ans.min(n_report))
+		def _(i):
+			print_ln("[%s]: %s, %s", i, ans[i], ans_dist[i])
+		last = size_ans - 1
+		@if_(n_report < size_ans)
+		def _():
+			print_ln("[%s]: %s, %s", last, ans[last], ans_dist[last])
+	print_stats()

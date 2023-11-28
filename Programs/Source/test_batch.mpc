@@ -1,0 +1,39 @@
+from util_mpc import *
+from link_graph import load_weights
+
+BATCH = 1
+n = 1000
+weights = load_weights(2*n)
+# print_arr(weights, size=10, name='weights')
+
+w_type = weights.value_type
+res_type = cint
+val_type = res_type if BATCH == 0 else sint
+if BATCH == 2:
+	ws1, ws2 = weights[::2], weights[1::2]
+	ress = ws1 < ws2
+	print(type(ress), ress)
+else:
+	ress = val_type.Array(n)
+	# @for_range(n)
+	@for_range_opt(n, budget=None)
+	# @for_range_parallel(16, n)
+	# @for_range_opt_multithread(2, n)
+	def _(i):
+		comp = weights[2*i] < weights[2*i + 1]
+		if BATCH == 0:
+			comp = comp.reveal()
+		ress[i] = comp
+if BATCH != 0:
+	ress = ress.reveal()
+	# print(type(ress), ress)
+
+# if BATCH != 2:
+# # if False:
+# 	@map_sum_opt(8, n, [res_type])
+# 	def summer(i):
+# 		return ress[i]
+# 	res_sum = summer()
+# else:
+# 	res_sum = sum(ress)
+# print_ln("res_sum: %s", res_sum)

@@ -1,0 +1,52 @@
+from util_mpc import check_val
+# from HT_heap import Heap
+from HTM_heap import Heap
+
+def check(el, val=-1):
+	print_ln("%s", el.reveal())
+	for i in range(len(el)):
+		check_val(el[i], val[i])
+
+heap = Heap(10, 4, 2)
+
+def push(item, p):
+	heap.begin_push(0)
+	heap.push(item, p)
+	heap.end_push()
+
+push((1, 0), 1)
+heap.print()
+push((3, 1), 3)
+heap.print()
+push((2, 2), 3)
+heap.print()
+push((4, 3), 3)
+heap.print()
+top = heap.pop()
+heap.print()
+check(top, (1, 0))
+top = heap.pop()
+heap.print()
+check(top, (2, 2))
+heap.begin_push(0)
+heap.push((5, 4), 1)
+heap.push((0, 5), 1)
+heap.push((6, 6), 1)
+heap.end_push()
+heap.print()
+top = heap.pop()
+heap.print()
+check(top, (0, 5))
+top = heap.pop()
+heap.print()
+check(top, (3, 1))
+top = heap.pop()
+heap.print()
+check(top, (4, 3))
+top = heap.pop()
+heap.print()
+check(top, (5, 4))
+top = heap.pop()
+heap.print()
+check(top, (6, 6))
+# top = heap.pop()
