@@ -13,7 +13,7 @@ read NP <&6
 # NP=4
 
 hosts=""
-# hosts="-HHOSTS_"
+hosts="-HHOSTS_"
 head -$NP HOSTS > HOSTS_
 
 other=''

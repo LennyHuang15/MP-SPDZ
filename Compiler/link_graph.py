@@ -144,7 +144,11 @@ class Graph(object):
 				from HT_heap import Heap
 			else:
 				from hier_heap import Heap
-			qs, qt = Heap(E_, NN, 3), Heap(E_, NN, 3)
+			
+			if MERGE_HEAP:
+				qs, qt = Heap(E_, NN, 3, name=0), Heap(E_, NN, 3, name=1)
+			else:
+				qs, qt = Heap(E_, NN, 3), Heap(E_, NN, 3)
 		else:
 			from heap import Heap
 			qs, qt = Heap(E_, 3), Heap(E_, 3)

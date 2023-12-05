@@ -3,6 +3,7 @@ from Compiler.program import Program
 from Compiler.library import public_input
 import numpy as np
 from util_mpc import *
+from util_heap import PRINT_OP
 prog = Program.prog
 prog.use_edabit(True)
 
@@ -48,7 +49,11 @@ for i, st in enumerate(sts):
 
 	init_stats()
 	start_timer(i+1)
+	if PRINT_OP:
+		print_str("Q: ")
 	ans, ans_dist, size_ans = SP(graph, S, T)
+	if PRINT_OP:
+		print_ln("")
 	stop_timer(i+1)
 
 	if PRINT_RESULT:
