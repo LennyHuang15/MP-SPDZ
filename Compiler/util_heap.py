@@ -4,6 +4,7 @@ from Compiler.library import print_ln, print_str, \
 from util_mpc import maybe_set, cond_swap_arr, add_stat, get_stat, print_stats, OFS
 
 PLAIN = 1
+PRINT_OP = 0
 
 class BaseHeap(object):
 	def __len__(self):

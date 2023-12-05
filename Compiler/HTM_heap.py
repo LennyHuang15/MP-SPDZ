@@ -2,7 +2,7 @@ from Compiler.types import *
 from Compiler.library import runtime_error_if, print_ln, print_str, \
 	if_, if_e, else_, while_do, do_while, break_loop, \
 	for_range, for_range_opt_multithread, for_range_opt
-from util_heap import BaseHeap
+from util_heap import BaseHeap, PRINT_OP
 from util_mpc import copy, print_arr, add_stat, get_stat, OFS, \
 	ASSERT, DATA_BOUND
 from util_T_heap import *
@@ -18,17 +18,18 @@ DEBUG = 0
 MAX_PATH = 128
 PUSH_PARALLEL = 0
 MULTI_THREAD = 2
-fac_merge, fac_merge_div = 2, 1
+fac_merge, fac_merge_div = 4, 1
 def key_l(el):
 	return el[0]
 
 class Heap(BaseHeap):
-	def __init__(self, cap_l, cap_h, WIDTH=2, value_type=sint):
+	def __init__(self, cap_l, cap_h, WIDTH=2, value_type=sint, name=0):
 		self.cap_l, self.cap_h = regint(cap_l), regint(cap_h)
 		self.arr_l = value_type.Tensor([cap_l, WIDTH])
 		self.size, self.size_l = regint(0), regint(0)
 		self.tours = regint.Tensor([cap_l * 2, len(FIELDS)])
 		self.size_tour = regint(0)
+		self.name = name
 
 		self.key_idx = lambda idx: key_l(self.arr_l[idx])# idx_l -> w
 		self.arr_h = HeapHier(cap_h, self.key_idx, self.tours, \
@@ -60,9 +61,13 @@ class Heap(BaseHeap):
 		return self.top_l(tidx)
 
 	def begin_push(self, src):
+		if PRINT_OP:
+			print_str("B%s ", self.name)
 		super().begin_push(src)
 		self.hfm_queue.clear()
 	def push(self, entry, dist_p=regint(0)):
+		if PRINT_OP:
+			print_str("%s ", key_l(entry).reveal())
 		arr_l, tours, hfm_queue = self.arr_l, self.tours, self.hfm_queue
 		size, size_l, size_t = self.size, self.size_l, self.size_tour
 		if ASSERT:
@@ -73,10 +78,9 @@ class Heap(BaseHeap):
 		for x in [size, size_l, size_t]:
 			x.iadd(1)
 	def end_push(self, dist_p=None):
-		if PUSH_PARALLEL:
-			self._end_push_parallel()
-		else:
-			self._end_push(dist_p)
+		if PRINT_OP:
+			print_str("E%s ", self.name)
+		self._end_push(dist_p)
 		super().end_push()
 	def _end_push(self, dist_p=None):
 		arr_l, arr_h, size_t = self.arr_l, self.arr_h, self.size_tour
@@ -86,6 +90,7 @@ class Heap(BaseHeap):
 			hfm_queue.print("hfm_queue")
 		@if_(hfm_queue.size > 0)
 		def _():
+			st_cmp = get_stat(OFS.Cmp)
 			@while_do(lambda: hfm_queue.size >= 2)
 			def _():
 				tidx1, tidx2 = hfm_queue.pop(), hfm_queue.pop()
@@ -95,6 +100,8 @@ class Heap(BaseHeap):
 				hfm_queue.push(size_t)
 				size_t.iadd(1)
 			tidx = hfm_queue.pop()
+			en_cmp = get_stat(OFS.Cmp)
+			add_stat(OFS.CmpHeapify, en_cmp - st_cmp)
 			if dist_p is not None:
 				tours[tidx][FIELDS.W] = dist_p
 			arr_h.push(tidx)
@@ -166,6 +173,8 @@ class Heap(BaseHeap):
 		# print_ln("pop arr_h[%s]", arr_h.size)
 		en_cmp_ = get_stat(OFS.Cmp)
 		add_stat(OFS.CmpPopH, en_cmp_ - st_cmp_)
+		if PRINT_OP:
+			print_str("O%s %s ", self.name, key_l(top).reveal())
 		return top
 
 	def _print_tours(self):
